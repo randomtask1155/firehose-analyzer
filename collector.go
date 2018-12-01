@@ -136,7 +136,7 @@ func (m *Metrics) processCounterEvent(e *events.Envelope) {
 func (m *Metrics) parseEnvelope(e *events.Envelope) {
 
 	inMem := false
-	if e.GetOrigin() == MetronOrigin {
+	if e.GetOrigin() == MetronOrigin && e.GetEventType() == events.Envelope_CounterEvent {
 		for i := range m.Metrons {
 			if m.Metrons[i].Index == e.GetIndex() {
 				inMem = true

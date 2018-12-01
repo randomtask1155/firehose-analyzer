@@ -20,7 +20,9 @@ Syslog Scheduler       %d                   %.2f         %.2f        %.2f       
 Drain Information:	
 Syslog Adapter		- There are %.0f drain bindings
 Syslog Scheduler	- There are %.0f drains
-	
+
+Doppler Message Rate Capcity: ` + tm.Color("%.2f", tm.YELLOW) + `
+
 %s
 
 Metron Health: Report any metron agents that are dropping envelopes
@@ -36,16 +38,26 @@ func updateTerm() {
 	saCount, saUser, saSys, saWait, saMem := computeInstance(SyslogAdapterJob)
 	ssCount, ssUser, ssSys, ssWait, ssMem := computeInstance(SyslogSchedulerJob)
 
-	envStats := "Doppler\t\t\t\t\t\tSubscriptions\tIngress\t\tDropped\n"
+	envStats := "Doppler\t\t\t\t\t\tSubscriptions\tIngress\tDropped\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
+	dMessSum := uint64(0)
+	totalDopplers := 0
 	for i := range mc.EnvelopeStats {
-		envStats += fmt.Sprintf("%s/%s\t%.0f\t\t%d\t\t%d\n", mc.EnvelopeStats[i].Job, mc.EnvelopeStats[i].Index, mc.EnvelopeStats[i].Subscriptions, mc.EnvelopeStats[i].Ingress, mc.EnvelopeStats[i].Dropped)
+		dMessSum += mc.EnvelopeStats[i].Ingress
+		totalDopplers++
+		envStats += fmt.Sprintf("%s/%s\t%.0f\t\t%d\t%d\t%.2f\n", mc.EnvelopeStats[i].Job,
+			mc.EnvelopeStats[i].Index,
+			mc.EnvelopeStats[i].Subscriptions,
+			mc.EnvelopeStats[i].Ingress,
+			mc.EnvelopeStats[i].Dropped,
+			float64(mc.EnvelopeStats[i].Dropped)/float64(mc.EnvelopeStats[i].Ingress))
 	}
+	capcity := float64(dMessSum) / float64(totalDopplers)
 
-	metronStats := "No unhealthy Metron Agents to report :-)"
+	metronStats := tm.Color("No unhealthy Metron Agents to report :-)", tm.GREEN)
 	for i := range mc.Metrons {
 		if mc.Metrons[i].Dropped > 0 {
-			metronStats += fmt.Sprintf("%s/%s received %d and dropped %d\n", mc.Metrons[i].Job, mc.Metrons[i].Index, mc.Metrons[i].Ingress, mc.Metrons[i].Dropped)
+			metronStats += fmt.Sprintf(tm.Color("%s/%s received %d and dropped %d", tm.RED)+"\n", mc.Metrons[i].Job, mc.Metrons[i].Index, mc.Metrons[i].Ingress, mc.Metrons[i].Dropped)
 		}
 	}
 	tm.Printf(screenTemplate,
@@ -69,7 +81,7 @@ func updateTerm() {
 		ssUser,
 		ssSys,
 		ssWait,
-		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, envStats, metronStats)
+		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, capcity, envStats, metronStats)
 	//tm.Printf("%v\n", mc)
 	tm.Flush()
 }
