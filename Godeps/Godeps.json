@@ -1,0 +1,73 @@
+{
+	"ImportPath": "github.com/randomtask1155/firehose-analyzer",
+	"GoVersion": "go1.9",
+	"GodepVersion": "v79",
+	"Packages": [
+		"."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/buger/goterm",
+			"Rev": "c206103e1f37c0c6c5c039706305ea2aa6e8ad3b"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/dropsonde/dropsonde_unmarshaller",
+			"Comment": "v1.0.0-14-g566965a",
+			"Rev": "566965a4f337c6c72c0bc7f0854c564001bab69e"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/dropsonde/metric_sender",
+			"Comment": "v1.0.0-14-g566965a",
+			"Rev": "566965a4f337c6c72c0bc7f0854c564001bab69e"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/dropsonde/metrics",
+			"Comment": "v1.0.0-14-g566965a",
+			"Rev": "566965a4f337c6c72c0bc7f0854c564001bab69e"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/sonde-go/events",
+			"Rev": "c48c4f0332609a0e402af4ae31595204c9f7b363"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/gogoproto",
+			"Comment": "v0.5-30-g616a82ed",
+			"Rev": "616a82ed12d78d24d4839363e8f3c5d3f20627cf"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/proto",
+			"Comment": "v0.5-30-g616a82ed",
+			"Rev": "616a82ed12d78d24d4839363e8f3c5d3f20627cf"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/protoc-gen-gogo/descriptor",
+			"Comment": "v0.5-30-g616a82ed",
+			"Rev": "616a82ed12d78d24d4839363e8f3c5d3f20627cf"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.2.0-14-g7ca4275",
+			"Rev": "7ca4275b84a9d500f68971c8c4a97f0ec18eb889"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson",
+			"Rev": "5f62e4f3afa2f576dc86531b7df4d966b19ef8f8"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/buffer",
+			"Rev": "5f62e4f3afa2f576dc86531b7df4d966b19ef8f8"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/jlexer",
+			"Rev": "5f62e4f3afa2f576dc86531b7df4d966b19ef8f8"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/jwriter",
+			"Rev": "5f62e4f3afa2f576dc86531b7df4d966b19ef8f8"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "44b849a8bc13eb42e95e6c6c5e360481b73ec710"
+		}
+	]
+}

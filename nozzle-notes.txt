@@ -1,0 +1,48 @@
+*** ValueMetric
+
+jobs
+syslog_adapter
+syslog_scheduler
+
+average_envelope
+origin:"loggregator.metron" eventType:ValueMetric timestamp:1543605180785879294 deployment:"p-healthwatch-450531fd7a75522decb9" job:"healthwatch-forwarder" index:"a954465f-265a-4207-ae6b-229ae5dc7336" ip:"10.193.76.39" valueMetric:<name:"average_envelope" value:0 unit:"bytes/minute" > 17:"\n\x0emetric_version\x12\x032.0" 17:"\n\vloggregator\x12\x02v1" 17:"\n\tsource_id\x12\x06metron"
+
+origin:bosh-system-metrics-forwarder
+<name:"system.disk.system.percent" value:46 unit:"Percent" >
+"system.disk.ephemeral.percent" value:5 unit:"Percent"
+"system.load.1m" value:0 unit:"Load"
+"system.cpu.user" value:1 unit:"Load"
+"system.cpu.wait" value:0.1 unit:"Load"
+"system.cpu.sys" value:0.3 unit:"Load"
+"system.mem.percent" value:77 unit:"Percent"
+"system.swap.percent" value:5 unit:"Percent"
+
+origin:"bosh-system-metrics-forwarder" eventType:ValueMetric timestamp:1543607138000000000 deployment:"cf-122f0c8a3469b9481b25" job:"syslog_adapter" index:"3386650b-f32c-468c-b994-2b525a355ec3" ip:"" valueMetric:<name:"system.swap.percent" value:5 unit:"Percent" > 17:"\n\tsource_id\x12\x1dbosh-system-metrics-forwarder" 17:"\n\x02id\x12$3386650b-f32c-468c-b994-2b525a355ec3"
+
+
+
+origin:cf-syslog-drain.scheduler
+"drains" value:0 unit:"count"
+"adapters" value:1 unit:"count"
+
+
+origin:cf-syslog-drain.adapter
+"drain_bindings" value:0 unit:"bindings"
+
+
+
+origin:loggregator.doppler
+dump_sinks" value:57 unit:"sinks"
+"container_metric_sinks" value:57 unit:"sinks"
+"subscriptions" value:9 unit:"subscriptions"
+
+
+
+
+
+
+	CounterEvent
+origin:"MetronAgent" eventType:CounterEvent timestamp:1543608054106114593 deployment:"service-instance_bba91746-27fd-4a20-a801-c6cf2bbc71ef" job:"mysql" index:"c6dc09bb-2690-4d95-b453-13d1f637d46a" ip:"10.193.76.60" counterEvent:<name:"dropsondeMarshaller.sentEnvelopes" delta:10 total:12969 > 17:"\n\nevent_type\x12\fCounterEvent" 17:"\n\bprotocol\x12\x04grpc"
+origin:"MetronAgent" eventType:CounterEvent timestamp:1543608054106482151 deployment:"service-instance_bba91746-27fd-4a20-a801-c6cf2bbc71ef" job:"mysql" index:"c6dc09bb-2690-4d95-b453-13d1f637d46a" ip:"10.193.76.60" counterEvent:<name:"dropsondeUnmarshaller.receivedEnvelopes" delta:152 total:197242 > 17:"\n\bprotocol\x12\x03udp" 17:"\n\nevent_type\x12\vValueMetric"
+
+
