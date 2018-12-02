@@ -33,4 +33,4 @@ Usage of firehose-analyzer:
 
 ### Demo
 
-[![asciicast](https://asciinema.org/a/VwJhb3avWZg05bheHwQSNBmUf.svg)](https://asciinema.org/a/VwJhb3avWZg05bheHwQSNBmUf)
+[![asciicast](https://asciinema.org/a/214731.svg)](https://asciinema.org/a/214731)
