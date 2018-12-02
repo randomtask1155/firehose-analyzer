@@ -31,11 +31,16 @@ var (
 )
 
 const (
+	// TrafficControllerJob name of traffic controller job
 	TrafficControllerJob = "loggregator_trafficcontroller"
-	DopplerJob           = "doppler"
-	SyslogAdapterJob     = "syslog_adapter"
-	SyslogSchedulerJob   = "syslog_scheduler"
-	MetronOrigin         = "loggregator.metron"
+	// DopplerJob name of doppler job
+	DopplerJob = "doppler"
+	// SyslogAdapterJob name of syslog adapter job
+	SyslogAdapterJob = "syslog_adapter"
+	// SyslogSchedulerJob name of syslog scheduler job
+	SyslogSchedulerJob = "syslog_scheduler"
+	// MetronOrigin is the origin label of the metron agent
+	MetronOrigin = "loggregator.metron"
 )
 
 // CFConfig struct used to parse ~/.cf/config.json

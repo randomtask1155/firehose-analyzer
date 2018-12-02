@@ -32,12 +32,6 @@ type EnvelopeStat struct {
 	Dropped       uint64
 }
 
-/*
-origin:"MetronAgent" eventType:CounterEvent timestamp:1543613383423032434 deployment:"service-instance_ff5cb75b-2e90-4ed7-a3e5-2e39582dabe0" job:"mysql" index:"81df1815-0ea1-4393-ad43-2d26e83d6fd1" ip:"10.193.76.48" counterEvent:<name:"dropsondeMarshaller.sentEnvelopes" delta:160 total:6664530 > 17:"\n\nevent_type\x12\vValueMetric" 17:"\n\bprotocol\x12\x04grpc"
-origin:"MetronAgent" eventType:CounterEvent timestamp:1543613383422952033 deployment:"service-instance_ff5cb75b-2e90-4ed7-a3e5-2e39582dabe0" job:"mysql" index:"81df1815-0ea1-4393-ad43-2d26e83d6fd1" ip:"10.193.76.48" counterEvent:<name:"dropsondeMarshaller.sentEnvelopes" delta:10 total:416605 > 17:"\n\nevent_type\x12\fCounterEvent" 17:"\n\bprotocol\x12\x04grpc"
-origin:"MetronAgent" eventType:CounterEvent timestamp:1543613383423119790 deployment:"service-instance_ff5cb75b-2e90-4ed7-a3e5-2e39582dabe0" job:"mysql" index:"81df1815-0ea1-4393-ad43-2d26e83d6fd1" ip:"10.193.76.48" counterEvent:<name:"dropsondeAgentListener.receivedByteCount" delta:11142 total:464211698 >
-origin:"MetronAgent" eventType:CounterEvent timestamp:1543613383423208077 deployment:"service-instance_ff5cb75b-2e90-4ed7-a3e5-2e39582dabe0" job:"mysql" index:"81df1815-0ea1-4393-ad43-2d26e83d6fd1" ip:"10.193.76.48" counterEvent:<name:"dropsondeUnmarshaller.receivedEnvelopes" delta:152 total:6332890 > 17:"\n\bprotocol\x12\x03udp" 17:"\n\nevent_type\x12\vValueMetric"
-*/
 // Metron stats related to metron sent/received envelopes.   look for agents that are receiving more than 8k (80% of the max of 10k)
 type Metron struct {
 	Job     string
