@@ -46,7 +46,7 @@ type Metron struct {
 	Dropped uint64
 }
 
-func (m *Metrics) processValueMetric(e *events.Envelope) {
+func (m *Metrics) processValueMetric(e *events.Envelope) bool {
 	index := e.GetIndex()
 	instanceIndex := -1
 	for i := range m.Instances {
@@ -57,30 +57,30 @@ func (m *Metrics) processValueMetric(e *events.Envelope) {
 	}
 
 	if *e.ValueMetric.Name == "system.cpu.wait" && e.GetOrigin() == "bosh-system-metrics-forwarder" {
-		m.Instances[instanceIndex].CPUWait = *e.ValueMetric.Value
-		return
+		m.Instances[instanceIndex].CPUWait = e.ValueMetric.GetValue()
+		return true
 	}
 	if *e.ValueMetric.Name == "system.cpu.user" && e.GetOrigin() == "bosh-system-metrics-forwarder" {
-		m.Instances[instanceIndex].CPUUser = *e.ValueMetric.Value
-		return
+		m.Instances[instanceIndex].CPUUser = e.ValueMetric.GetValue()
+		return true
 	}
 	if *e.ValueMetric.Name == "system.cpu.sys" && e.GetOrigin() == "bosh-system-metrics-forwarder" {
-		m.Instances[instanceIndex].CPUSys = *e.ValueMetric.Value
-		return
+		m.Instances[instanceIndex].CPUSys = e.ValueMetric.GetValue()
+		return true
 	}
 	if *e.ValueMetric.Name == "system.mem.percent" && e.GetOrigin() == "bosh-system-metrics-forwarder" {
-		m.Instances[instanceIndex].Memory = *e.ValueMetric.Value
-		return
+		m.Instances[instanceIndex].Memory = e.ValueMetric.GetValue()
+		return true
 	}
 
 	if *e.ValueMetric.Name == "drains" && e.GetOrigin() == "cf-syslog-drain.scheduler" {
-		m.SchedulerDrains = *e.ValueMetric.Value
-		return
+		m.SchedulerDrains = e.ValueMetric.GetValue()
+		return true
 	}
 
 	if *e.ValueMetric.Name == "drain_bindings" && e.GetOrigin() == "cf-syslog-drain.adapter" {
-		m.AdapterDrainBindings = *e.ValueMetric.Value
-		return
+		m.AdapterDrainBindings = e.ValueMetric.GetValue()
+		return true
 	}
 
 	// Doppler Metrics
@@ -92,12 +92,13 @@ func (m *Metrics) processValueMetric(e *events.Envelope) {
 		}
 	}
 	if *e.ValueMetric.Name == "subscriptions" && e.GetOrigin() == "loggregator.doppler" {
-		m.EnvelopeStats[dopplerIndex].Subscriptions = *e.ValueMetric.Value
-		return
+		m.EnvelopeStats[dopplerIndex].Subscriptions = e.ValueMetric.GetValue()
+		return true
 	}
+	return false
 }
 
-func (m *Metrics) processCounterEvent(e *events.Envelope) {
+func (m *Metrics) processCounterEvent(e *events.Envelope) bool {
 	index := e.GetIndex()
 	dopplerIndex := -1
 	for i := range m.EnvelopeStats {
@@ -110,27 +111,28 @@ func (m *Metrics) processCounterEvent(e *events.Envelope) {
 	for i := range m.Metrons {
 		if m.Metrons[i].Index == index {
 			metronIndex = i
+			break
 		}
 	}
 
 	if *e.CounterEvent.Name == "ingress" && e.GetOrigin() == "loggregator.doppler" {
-		m.EnvelopeStats[dopplerIndex].Ingress = *e.CounterEvent.Delta
-		return
+		m.EnvelopeStats[dopplerIndex].Ingress = e.CounterEvent.GetDelta()
+		return true
 	}
 	if *e.CounterEvent.Name == "dropped" && e.GetOrigin() == "loggregator.doppler" {
-		m.EnvelopeStats[dopplerIndex].Dropped = *e.CounterEvent.Delta
-		return
+		m.EnvelopeStats[dopplerIndex].Dropped = e.CounterEvent.GetDelta()
+		return true
 	}
 
 	if *e.CounterEvent.Name == "ingress" && e.GetOrigin() == MetronOrigin {
-		m.Metrons[metronIndex].Ingress = *e.CounterEvent.Delta
-		return
+		m.Metrons[metronIndex].Ingress = e.CounterEvent.GetDelta()
+		return true
 	}
 	if *e.CounterEvent.Name == "dropped" && e.GetOrigin() == MetronOrigin {
-		m.Metrons[metronIndex].Dropped = *e.CounterEvent.Delta
-		return
+		m.Metrons[metronIndex].Dropped = e.CounterEvent.GetDelta()
+		return true
 	}
-
+	return false
 }
 
 func (m *Metrics) parseEnvelope(e *events.Envelope) {
@@ -167,10 +169,14 @@ func (m *Metrics) parseEnvelope(e *events.Envelope) {
 	}
 
 	if e.GetEventType() == events.Envelope_ValueMetric {
-		m.processValueMetric(e)
+		if m.processValueMetric(e) && arvhiveEnabled {
+			go archiveMetric(e, e.ValueMetric.GetName(), e.ValueMetric.GetValue(), e.ValueMetric.GetUnit())
+		}
 	}
 	if e.GetEventType() == events.Envelope_CounterEvent {
-		m.processCounterEvent(e)
+		if m.processCounterEvent(e) && arvhiveEnabled {
+			go archiveMetric(e, e.CounterEvent.GetName(), e.CounterEvent.GetDelta(), e.CounterEvent.GetTotal())
+		}
 	}
 }
 

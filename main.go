@@ -19,12 +19,15 @@ import (
 )
 
 var (
-	wssURL      = flag.String("url", "", "Web socket address example: wss://doppler.system.domain:443/apps/41abc841-cbc8-4cab-854d-640a7c8b6a5f/stream")
-	apiTarget   = flag.String("api", "", "CF API endpoint https://api.system.domain.com")
-	accessToken = flag.String("token", "", "Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json")
-	logger      *log.Logger
-	cfconf      CFConfig
-	mc          Metrics
+	wssURL         = flag.String("url", "", "Web socket address example: wss://doppler.system.domain:443/apps/41abc841-cbc8-4cab-854d-640a7c8b6a5f/stream")
+	apiTarget      = flag.String("api", "", "CF API endpoint https://api.system.domain.com")
+	accessToken    = flag.String("token", "", "Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json")
+	outFile        = flag.String("o", "", "Specifiy an output file that records data in csv format")
+	logger         *log.Logger
+	cfconf         CFConfig
+	mc             Metrics
+	arvhiveEnabled = false
+	ofh            *os.File
 )
 
 const (
@@ -153,10 +156,22 @@ func main() {
 	output := make(chan *events.Envelope, 10000)
 	dn := dropsonde_unmarshaller.NewDropsondeUnmarshaller()
 
-	fmt.Println("starting dropsnode unmarshaller...")
+	if *outFile != "" {
+		logger.Printf("starting to archive output to %s", *outFile)
+		var err error
+		ofh, err = os.Create(*outFile)
+		if err != nil {
+			logger.Fatalln(err)
+		}
+		ofh.Write([]byte(fmt.Sprintf("time,job/index,metric,value,type,unit\n")))
+		arvhiveEnabled = true
+		defer ofh.Close()
+	}
+
+	logger.Println("starting dropsnode unmarshaller...")
 	go dn.Run(input, output)
 
-	fmt.Println("starting output collector...")
+	logger.Println("starting output collector...")
 	go func(output chan *events.Envelope) {
 		for {
 			select {
@@ -166,7 +181,7 @@ func main() {
 		}
 	}(output)
 
-	fmt.Println("starting read loop...")
+	logger.Println("starting read loop...")
 	go loopTerm()
 	for {
 		_, p, err := conn.ReadMessage()
