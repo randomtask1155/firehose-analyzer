@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	wssURL         = flag.String("url", "", "Web socket address example: wss://doppler.system.domain:443/apps/41abc841-cbc8-4cab-854d-640a7c8b6a5f/stream")
+	wssURL         = flag.String("url", "", "Web socket address example: wss://doppler.system.domain:443")
 	apiTarget      = flag.String("api", "", "CF API endpoint https://api.system.domain.com")
 	accessToken    = flag.String("token", "", "Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json")
 	outFile        = flag.String("o", "", "Specifiy an output file that records data in csv format")
