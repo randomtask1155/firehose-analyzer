@@ -92,6 +92,12 @@ func (c *CFConfig) setDopplerEndpoint() error {
 	if err != nil {
 		return fmt.Errorf("cf cli lookup failed: %s", err)
 	}
+
+	// run cf spaces to force a refresh of access token
+	authOut, err := exec.Command(cfcli, "spaces").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", authOut, err)
+	}
 	bodyBytes, err := exec.Command(cfcli, "curl", "/v2/info").Output()
 	if err != nil {
 		return err
