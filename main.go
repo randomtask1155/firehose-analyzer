@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"time"
@@ -51,56 +52,47 @@ type CFConfig struct {
 }
 
 // Get access token from ~/.cf/config.json
-func getCFConfig() (CFConfig, error) {
+func (c *CFConfig) getCFConfig() error {
 	if *accessToken != "" && *apiTarget != "" {
-		return CFConfig{AccessToken: *accessToken, Target: *apiTarget}, nil
+		c.AccessToken = *accessToken
+		c.Target = *apiTarget
+		return nil
 	}
-	conf := CFConfig{}
 	usr, err := user.Current()
 	if err != nil {
-		return conf, fmt.Errorf("Could not get users home directory: %s", err)
+		return fmt.Errorf("Could not get users home directory: %s", err)
 	}
 	config := path.Join(usr.HomeDir, ".cf/config.json")
 	_, err = os.Stat(config)
 	if err != nil {
-		return conf, fmt.Errorf("Unalbe to stat %s: %s", config, err)
+		return fmt.Errorf("Unalbe to stat %s: %s", config, err)
 	}
 
 	b, err := ioutil.ReadFile(config)
 	if err != nil {
-		return conf, fmt.Errorf("Reading Config %s failed: %s", config, err)
+		return fmt.Errorf("Reading Config %s failed: %s", config, err)
 	}
-	err = json.Unmarshal(b, &conf)
+	err = json.Unmarshal(b, &c)
 	if err != nil {
-		return conf, fmt.Errorf("Could not parse config %s: %s", config, err)
+		return fmt.Errorf("Could not parse config %s: %s", config, err)
 	}
-	if conf.AccessToken == "" {
-		return conf, fmt.Errorf("Invalid access token found in %s", config)
+	if c.AccessToken == "" {
+		return fmt.Errorf("Invalid access token found in %s", config)
 	}
-	return conf, nil
+	return nil
 }
 
+// setDopplerEndpoint use cf cli to get the api info.  This will force a refresh of the access token and prevent 401 errors.
 func (c *CFConfig) setDopplerEndpoint() error {
 	type apiInfoResp struct {
 		DopplerEndpoint string `json:"doppler_logging_endpoint"`
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Get(fmt.Sprintf("%s/v2/info", c.Target))
+	cfcli, err := exec.LookPath("cf")
 	if err != nil {
-		return err
+		return fmt.Errorf("cf cli lookup failed: %s", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("Invalid API Response Code: %d\n%s", resp.StatusCode, string(bodyBytes))
-	}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := exec.Command(cfcli, "curl", "/v2/info").Output()
 	if err != nil {
 		return err
 	}
@@ -136,16 +128,15 @@ func createSocket() (*websocket.Conn, error) {
 func main() {
 	//var buf bytes.Buffer
 	logger = log.New(os.Stdout, "logger: ", log.Ldate|log.Ltime|log.Lshortfile)
-
 	flag.Parse()
-	var err error
-	cfconf, err = getCFConfig() // TODO need to handle refresh token given access token can expire pretty fast
+	// get doppler endpoint
+	cfconf = CFConfig{}
+	err := cfconf.setDopplerEndpoint()
 	if err != nil {
 		logger.Fatalln(err)
 	}
 
-	// get doppler endpoint
-	err = cfconf.setDopplerEndpoint()
+	err = cfconf.getCFConfig() // TODO need to handle refresh token given access token can expire pretty fast
 	if err != nil {
 		logger.Fatalln(err)
 	}
