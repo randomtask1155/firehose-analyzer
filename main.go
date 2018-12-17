@@ -24,6 +24,8 @@ var (
 	apiTarget      = flag.String("api", "", "CF API endpoint https://api.system.domain.com")
 	accessToken    = flag.String("token", "", "Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json")
 	outFile        = flag.String("o", "", "Specifiy an output file that records data in csv format")
+	replay         = flag.String("replay", "", "-replay [filename]\nReplay stats from given output file.  Also see -speed to adjust replay settings")
+	speed          = flag.Int("speed", 1, "Speed of replay.  Default 1 is realtime and 0 for instance replay")
 	logger         *log.Logger
 	cfconf         CFConfig
 	mc             Metrics
@@ -135,6 +137,12 @@ func main() {
 	//var buf bytes.Buffer
 	logger = log.New(os.Stdout, "logger: ", log.Ldate|log.Ltime|log.Lshortfile)
 	flag.Parse()
+	mc = Metrics{}
+	if *replay != "" {
+		go runReplay()
+		loopTerm()
+		return
+	}
 	// get doppler endpoint
 	cfconf = CFConfig{}
 	err := cfconf.setDopplerEndpoint()
@@ -153,7 +161,6 @@ func main() {
 	}
 	defer conn.Close()
 
-	mc = Metrics{}
 	input := make(chan []byte, 5000)
 	output := make(chan *events.Envelope, 10000)
 	dn := dropsonde_unmarshaller.NewDropsondeUnmarshaller()
@@ -165,7 +172,7 @@ func main() {
 		if err != nil {
 			logger.Fatalln(err)
 		}
-		ofh.Write([]byte(fmt.Sprintf("time,job/index,metric,value,type,unit\n")))
+		ofh.Write([]byte(fmt.Sprintf("time,origin,job/index,metric,value,type,unit\n")))
 		arvhiveEnabled = true
 		defer ofh.Close()
 	}

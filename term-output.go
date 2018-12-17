@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tm "github.com/buger/goterm"
@@ -12,22 +13,27 @@ Welcome to Firehose Analyzer - %s
 
 Job                    Instance-Counts     CPU-User     CPU-Sys     CPU-Wait      Memory
 ----------------------------------------------------------------------------------------
-Traffic Controller     %d                   %.2f         %.2f        %.2f          %.2f
-Doppler                %d                   %.2f         %.2f        %.2f          %.2f
-Syslog Aadapter        %d                   %.2f         %.2f        %.2f          %.2f
-Syslog Scheduler       %d                   %.2f         %.2f        %.2f          %.2f
+Traffic Controller   %3d                   %5.2f        %5.2f       %5.2f         %5.2f
+Doppler              %3d                   %5.2f        %5.2f       %5.2f         %5.2f
+Syslog Aadapter      %3d                   %5.2f        %5.2f       %5.2f         %5.2f
+Syslog Scheduler     %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 
 Drain Information:	
-Syslog Adapter		- There are %.0f drain bindings
-Syslog Scheduler	- There are %.0f drains
+Syslog Adapter drain bindings  : %.0f
+Syslog Scheduler drains        : %.0f
 
-Doppler Message Rate Capcity: ` + tm.Color("%.2f", tm.YELLOW) + `
+Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 
 %s
 
 Metron Health: Report any metron agents that are dropping envelopes
 %s
+
+
+%s
 `
+
+var progressBar = ""
 
 func updateTerm() {
 	tm.Clear()
@@ -81,7 +87,7 @@ func updateTerm() {
 		ssUser,
 		ssSys,
 		ssWait,
-		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, capcity, envStats, metronStats)
+		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, capcity, envStats, metronStats, progressBar)
 	//tm.Printf("%v\n", mc)
 	tm.Flush()
 }
@@ -108,4 +114,11 @@ func computeInstance(job string) (count int, user, sys, wait, mem float64) {
 	wait = wait / float64(count)
 	mem = mem / float64(count)
 	return
+}
+
+// used for replay progress
+func updateProgressBar(percent float64) {
+	length := 80
+	fill := int(float64(length) * percent)
+	progressBar = fmt.Sprintf("|%s%s|%3d%%", strings.Repeat("#", fill), strings.Repeat("-", length-fill), int(percent*100))
 }
