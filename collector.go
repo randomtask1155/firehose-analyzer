@@ -28,6 +28,7 @@ type EnvelopeStat struct {
 	Job           string
 	Index         string
 	Subscriptions float64
+	SinksDropped  uint64
 	Ingress       uint64
 	Dropped       uint64
 }
@@ -115,6 +116,10 @@ func (m *Metrics) processCounterEvent(e *events.Envelope) bool {
 	}
 	if *e.CounterEvent.Name == "dropped" && e.GetOrigin() == "loggregator.doppler" {
 		m.EnvelopeStats[dopplerIndex].Dropped = e.CounterEvent.GetDelta()
+		return true
+	}
+	if *e.CounterEvent.Name == "sinks.dropped" && e.GetOrigin() == "loggregator.doppler" {
+		m.EnvelopeStats[dopplerIndex].SinksDropped = e.CounterEvent.GetDelta()
 		return true
 	}
 

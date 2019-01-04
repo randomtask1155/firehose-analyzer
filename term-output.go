@@ -21,6 +21,7 @@ Syslog Scheduler     %3d                   %5.2f        %5.2f       %5.2f       
 Drain Information:	
 Syslog Adapter drain bindings  : %.0f
 Syslog Scheduler drains        : %.0f
+Doppler Sinks Dropped          : %d
 
 Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 
@@ -47,10 +48,12 @@ func updateTerm() {
 	envStats := "Doppler\t\t\t\t\t\tSubscriptions\tIngress\tDropped\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
 	dMessSum := uint64(0)
+	sinksDroppedSum := uint64(0)
 	totalDopplers := 0
 	for i := range mc.EnvelopeStats {
 		dMessSum += mc.EnvelopeStats[i].Ingress
 		totalDopplers++
+		sinksDroppedSum += mc.EnvelopeStats[i].SinksDropped
 		envStats += fmt.Sprintf("%s/%s\t%.0f\t\t%d\t%d\t%.2f\n", mc.EnvelopeStats[i].Job,
 			mc.EnvelopeStats[i].Index,
 			mc.EnvelopeStats[i].Subscriptions,
@@ -87,7 +90,7 @@ func updateTerm() {
 		ssUser,
 		ssSys,
 		ssWait,
-		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, capcity, envStats, metronStats, progressBar)
+		ssMem, mc.AdapterDrainBindings, mc.SchedulerDrains, sinksDroppedSum, capcity, envStats, metronStats, progressBar)
 	//tm.Printf("%v\n", mc)
 	tm.Flush()
 }
