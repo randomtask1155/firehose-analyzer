@@ -1,9 +1,10 @@
 package main
 
+/*
 import (
 	"github.com/cloudfoundry/sonde-go/events"
 )
-
+/
 // Metrics container for all metrics
 type Metrics struct {
 	Instances            []Instance
@@ -39,6 +40,17 @@ type Metron struct {
 	Index   string
 	Ingress uint64
 	Dropped uint64
+}
+
+type InstanceMetrics struct {
+	CPUUser
+	CPUSys
+
+	Memory
+	Name
+}
+type Metrics struct {
+
 }
 
 func (m *Metrics) processValueMetric(e *events.Envelope) bool {
@@ -185,3 +197,4 @@ func undefinedJob(j string) bool {
 	}
 	return true
 }
+*/

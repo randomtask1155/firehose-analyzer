@@ -1,165 +1,107 @@
 package main
 
 import (
-	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
-	"os/exec"
-	"os/user"
-	"path"
-	"time"
 
 	"github.com/cloudfoundry/dropsonde/dropsonde_unmarshaller"
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gorilla/websocket"
 )
 
 var (
-	wssURL         = flag.String("url", "", "Web socket address example: wss://doppler.system.domain:443")
-	apiTarget      = flag.String("api", "", "CF API endpoint https://api.system.domain.com")
+	systemDomain   = flag.String("sys", "", "Provide the system domain name which is used to find the log-cache endpoint")
 	accessToken    = flag.String("token", "", "Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json")
 	outFile        = flag.String("o", "", "Specifiy an output file that records data in csv format")
 	replay         = flag.String("replay", "", "-replay [filename]\nReplay stats from given output file.  Also see -speed to adjust replay settings")
 	speed          = flag.Int("speed", 1, "Speed of replay.  Default 1 is realtime and 0 for instance replay")
 	logger         *log.Logger
-	cfconf         CFConfig
 	mc             Metrics
 	arvhiveEnabled = false
 	ofh            *os.File
+	lcc            LCC
 )
 
 const (
-	// TrafficControllerJob name of traffic controller job
-	TrafficControllerJob = "loggregator_trafficcontroller"
-	// DopplerJob name of doppler job
-	DopplerJob = "doppler"
-	// SyslogAdapterJob name of syslog adapter job
-	SyslogAdapterJob = "syslog_adapter"
-	// SyslogSchedulerJob name of syslog scheduler job
-	SyslogSchedulerJob = "syslog_scheduler"
-	// MetronOrigin is the origin label of the metron agent
-	MetronOrigin = "loggregator.metron"
+	tcJob              = "loggregator_trafficcontroller"
+	dopplerJob         = "doppler"
+	syslogAdapterJob   = "syslog_adapter"
+	syslogSchedulerJob = "syslog_scheduler"
+
+	trafficControllerSID   = "traffic_controller"
+	dopplerSID             = "doppler"
+	syslogDrainAdapterSID  = "drain_adapter"
+	syslogDrainScheduleSID = "drain_scheduler"
+	metronSID              = "metron"
+	logCacheSID            = "log-cache"
+	logCacheNozzleSID      = "log-cache-nozzle"
+	boshSystemMetricsSID   = "bosh-system-metrics-forwarder" // cpu and memory
+
+	// common stats
+	ingressCounter = "ingress"
+	egressCounter  = "egress"
+	droppedCounter = "dropped"
+
+	// boshSystemMetricsSID metrics
+	cpuUserGauge       = "system_cpu_user"
+	cpuWaitGauge       = "system_cpu_wait"
+	cpuSYSGauge        = "system_cpu_sys"
+	memoryPercentGauge = "system_mem_percent"
+
+	// trafficControllerSID metrics
+	slowConsumerCounter          = "doppler_proxy_slow_consumer"
+	firehosesGauge               = "doppler_proxy_firehoses"
+	appStreamsGauge              = "doppler_proxy_app_streams"
+	containerMetricsLatencyGauge = "doppler_proxy_container_metrics_latency"
+
+	// dopplerSID metrics
+	dopplerSubscritionsGauge = "subscriptions"
+	dumpSinksGauge           = "dump_sinks"
+	sinksDroppedCounter      = "sinks_dropped"
+	sinkErrorsDroppedCounter = "sinks_errors_dropped"
+
+	// syslogDrainAdapterSID metrics
+	drainBindingsGauge = "drain_bindings"
+
+	// syslogDrainScheduleSID
+	drainsGauge   = "drains"
+	adaptersGauge = "adpaters"
+
+	// metronSID
+	averageEnvelopGauge = "average_envelope" // bytes/minute
+
+	// logCacheSID
+	lcSystemMemGauge   = "available-system-memory"
+	lcTotalMemGauge    = "total-system-memory"
+	lcExpiredCounter   = "expired"
+	lcCachePeriodGauge = "cache-period"
+
+	// logCacheNozzleSID
+	lcnErrCounter = "err"
 )
 
-// CFConfig struct used to parse ~/.cf/config.json
-type CFConfig struct {
-	AccessToken string `json:"AccessToken"`
-	Target      string `json:"Target"`
-	WSSURL      string
-}
-
-// Get access token from ~/.cf/config.json
-func (c *CFConfig) getCFConfig() error {
-	if *accessToken != "" && *apiTarget != "" {
-		c.AccessToken = *accessToken
-		c.Target = *apiTarget
-		return nil
-	}
-	usr, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("Could not get users home directory: %s", err)
-	}
-	config := path.Join(usr.HomeDir, ".cf/config.json")
-	_, err = os.Stat(config)
-	if err != nil {
-		return fmt.Errorf("Unalbe to stat %s: %s", config, err)
-	}
-
-	b, err := ioutil.ReadFile(config)
-	if err != nil {
-		return fmt.Errorf("Reading Config %s failed: %s", config, err)
-	}
-	err = json.Unmarshal(b, &c)
-	if err != nil {
-		return fmt.Errorf("Could not parse config %s: %s", config, err)
-	}
-	if c.AccessToken == "" {
-		return fmt.Errorf("Invalid access token found in %s", config)
-	}
-	return nil
-}
-
-// setDopplerEndpoint use cf cli to get the api info.  This will force a refresh of the access token and prevent 401 errors.
-func (c *CFConfig) setDopplerEndpoint() error {
-	type apiInfoResp struct {
-		DopplerEndpoint string `json:"doppler_logging_endpoint"`
-	}
-
-	cfcli, err := exec.LookPath("cf")
-	if err != nil {
-		return fmt.Errorf("cf cli lookup failed: %s", err)
-	}
-
-	// run cf spaces to force a refresh of access token
-	authOut, err := exec.Command(cfcli, "spaces").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", authOut, err)
-	}
-	bodyBytes, err := exec.Command(cfcli, "curl", "/v2/info").Output()
-	if err != nil {
-		return err
-	}
-
-	info := apiInfoResp{}
-	err = json.Unmarshal(bodyBytes, &info)
-	if err != nil {
-		return err
-	}
-	c.WSSURL = info.DopplerEndpoint + "/firehose/firehose-analyzer"
-	return nil
-}
-
-func createSocket() (*websocket.Conn, error) {
-	badConn := new(websocket.Conn)
-	dialer := websocket.DefaultDialer
-	dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	h := http.Header{}
-	h.Add("Authorization", cfconf.AccessToken)
-	conn, resp, err := dialer.Dial(cfconf.WSSURL, h)
-	if err != nil {
-		var errString error
-		if resp != nil {
-			errString = fmt.Errorf("HTTP Response: %s\nWEBSOCKET Error: %s", resp.Status, err)
-		} else {
-			errString = fmt.Errorf("WEBSOCKET Error:%s", err)
-		}
-		return badConn, errString
-	}
-	return conn, nil
-}
-
 func main() {
-	//var buf bytes.Buffer
 	logger = log.New(os.Stdout, "logger: ", log.Ldate|log.Ltime|log.Lshortfile)
 	flag.Parse()
+
+	if *systemDomain == "" {
+		logger.Fatalln("Must provide system domain with \"-sys domain.com\"")
+	}
+
 	mc = Metrics{}
 	if *replay != "" {
-		go runReplay()
-		loopTerm()
+		//	go runReplay()
+		//	loopTerm()
 		return
 	}
-	// get doppler endpoint
-	cfconf = CFConfig{}
-	err := cfconf.setDopplerEndpoint()
-	if err != nil {
-		logger.Fatalln(err)
-	}
 
-	err = cfconf.getCFConfig() // TODO need to handle refresh token given access token can expire pretty fast
+	var err error
+	lcc, err = NewLogCacheClient(fmt.Sprintf("https://log-cache.%s", *systemDomain))
 	if err != nil {
-		logger.Fatalln(err)
+		logger.Fatalf("Could not create log cache client: %s\n", err)
 	}
-
-	conn, err := createSocket()
-	if err != nil {
-		logger.Fatalf("failed to connect to %s: %s", cfconf.WSSURL, err)
-	}
-	defer conn.Close()
+	logger.Fatalln(lcc.Collect())
 
 	input := make(chan []byte, 5000)
 	output := make(chan *events.Envelope, 10000)
@@ -181,24 +123,24 @@ func main() {
 	go dn.Run(input, output)
 
 	logger.Println("starting output collector...")
-	go func(output chan *events.Envelope) {
+	/*go func(output chan *events.Envelope) {
 		for {
 			select {
 			case e := <-output:
 				mc.parseEnvelope(e)
 			}
 		}
-	}(output)
+	}(output)*/
 
 	logger.Println("starting read loop...")
-	go loopTerm()
-	for {
+	//go loopTerm()
+	/*for {
 		_, p, err := conn.ReadMessage()
 		if err != nil {
 			logger.Println(err)
 			time.Sleep(1 * time.Second)
 		}
 		input <- p
-	}
+	}*/
 
 }

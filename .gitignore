@@ -1,3 +1,5 @@
 *notes.txt
 *.gz
 replay
+firehose-analyzer
+firehose-analyzer.*

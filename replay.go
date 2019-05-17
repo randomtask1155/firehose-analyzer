@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"bufio"
 	"os"
@@ -121,3 +122,4 @@ func runReplay() {
 	}
 	updateProgressBar(1)
 }
+*/

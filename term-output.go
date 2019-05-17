@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"fmt"
 	"strings"
@@ -18,7 +19,7 @@ Doppler              %3d                   %5.2f        %5.2f       %5.2f       
 Syslog Aadapter      %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 Syslog Scheduler     %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 
-Drain Information:	
+Drain Information:
 Syslog Adapter drain bindings  : %.0f
 Syslog Scheduler drains        : %.0f
 Doppler Sinks Dropped          : %d
@@ -125,3 +126,4 @@ func updateProgressBar(percent float64) {
 	fill := int(float64(length) * percent)
 	progressBar = fmt.Sprintf("|%s%s|%3d%%", strings.Repeat("#", fill), strings.Repeat("-", length-fill), int(percent*100))
 }
+*/
