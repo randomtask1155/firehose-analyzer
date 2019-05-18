@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/cloudfoundry/dropsonde/dropsonde_unmarshaller"
 	"github.com/cloudfoundry/sonde-go/events"
@@ -28,6 +29,7 @@ const (
 	dopplerJob         = "doppler"
 	syslogAdapterJob   = "syslog_adapter"
 	syslogSchedulerJob = "syslog_scheduler"
+	metronJob          = "metron"
 
 	trafficControllerSID   = "traffic_controller"
 	dopplerSID             = "doppler"
@@ -39,9 +41,10 @@ const (
 	boshSystemMetricsSID   = "bosh-system-metrics-forwarder" // cpu and memory
 
 	// common stats
-	ingressCounter = "ingress"
-	egressCounter  = "egress"
-	droppedCounter = "dropped"
+	ingressCounter     = "ingress"
+	egressCounter      = "egress"
+	droppedCounter     = "dropped"
+	subscriptionsGauge = "subscriptions"
 
 	// boshSystemMetricsSID metrics
 	cpuUserGauge       = "system_cpu_user"
@@ -101,7 +104,13 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Could not create log cache client: %s\n", err)
 	}
-	logger.Fatalln(lcc.Collect())
+	//logger.Fatalln(lcc.Collect())
+
+	go loopTerm()
+	for {
+		lcc.Collect()
+		time.Sleep(30 * time.Second)
+	}
 
 	input := make(chan []byte, 5000)
 	output := make(chan *events.Envelope, 10000)
