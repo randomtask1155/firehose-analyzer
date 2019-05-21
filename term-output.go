@@ -19,9 +19,9 @@ Syslog Aadapter      %3d                   %5.2f        %5.2f       %5.2f       
 Syslog Scheduler     %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 
 Drain Information:
-Syslog Adapter drain bindings  : %d
-Syslog Scheduler drains        : %d
-Doppler Sinks Dropped          : %d
+Syslog Adapter drain bindings  : %.0f
+Syslog Scheduler drains        : %.0f
+Doppler Sinks Dropped          : %.0f
 
 Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 
@@ -42,11 +42,11 @@ func updateTerm() {
 
 	envStats := "Job\t\t\t\t\t\tSubscriptions\tIngress\tDropped\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
-	envStats += fmt.Sprintf("Doppler\t%d\t\t%d\t%d\t%.2f\n", lcc.Metric.Doppler.Subscriptions,
+	envStats += fmt.Sprintf("Doppler\t%.0f\t\t%.0f\t%.0f\t%.2f\n", lcc.Metric.Doppler.Subscriptions,
 		lcc.Metric.Doppler.Ingress,
 		lcc.Metric.Doppler.Dropped,
 		float64(lcc.Metric.Doppler.Dropped)/float64(lcc.Metric.Doppler.Ingress))
-	envStats += fmt.Sprintf("Metron\t%d\t\t%d\t%d\t%.2f\n", 0,
+	envStats += fmt.Sprintf("Metron\t%d\t\t%.0f\t%.0f\t%.2f\n", 0,
 		lcc.Metric.Metron.Ingress,
 		lcc.Metric.Metron.Dropped,
 		float64(lcc.Metric.Metron.Dropped)/float64(lcc.Metric.Metron.Ingress))

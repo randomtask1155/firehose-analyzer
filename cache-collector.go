@@ -74,8 +74,13 @@ CLI Range query
 cf query 'ingress{source_id="doppler"}' --step 1 --start `date +'%s'` --end $(expr $(date +'%s') + 30) | jq
 
 
+cf query 'rate(ingress{source_id="doppler"}[5m] offset 2m)' | jq
+
 promql notes
 https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
+
+
+./firehose-analyzer -sys run-35.haas-59.pez.pivotal.io
 
 */
 
@@ -160,18 +165,18 @@ type InstanceMetrics struct {
 
 type TrafficControllerMetrics struct {
 	System           InstanceMetrics
-	SlowConsumers    int64
-	AppStreams       int64
-	Egress           int64
-	Ingress          int64
+	SlowConsumers    float64
+	AppStreams       float64
+	Egress           float64
+	Ingress          float64
 	ContainerLatency float64
 }
 
 type MetronMetrics struct {
 	System      InstanceMetrics
-	Ingress     int64
-	Egress      int64
-	Dropped     int64
+	Ingress     float64
+	Egress      float64
+	Dropped     float64
 	AVGEnvelope float64
 	Name        string // name/index
 }
@@ -179,10 +184,10 @@ type MetronMetrics struct {
 type DopplerMetrics struct {
 	System              InstanceMetrics
 	MessageRateCapacity float64
-	Subscriptions       int64
-	Egress              int64
-	Ingress             int64
-	Dropped             int64
+	Subscriptions       float64
+	Egress              float64
+	Ingress             float64
+	Dropped             float64
 	Name                string // name/index
 }
 
@@ -195,9 +200,9 @@ type SyslogSchedulerMetrics struct {
 }
 
 type DrainMetrics struct {
-	DrainBindings   int64
-	ScheduledDrains int64
-	SinksDropped    int64
+	DrainBindings   float64
+	ScheduledDrains float64
+	SinksDropped    float64
 }
 
 // Metrics root of all computed metrics
@@ -219,6 +224,10 @@ type LCC struct {
 	client      *logcache.Client
 	Metric      Metrics
 	mux         sync.Mutex
+	Start       time.Time
+	Stop        time.Time
+	Offset      string
+	Duration    string
 }
 
 // NewLogCacheClient createa new LCC and returns it
@@ -301,46 +310,79 @@ func (lc *LCC) fetchToken() error {
 }
 
 // GetMetric given metric and source id result is returned
-func (lc *LCC) GetMetric(metric, sourceid string) (*logcache_v1.PromQL_InstantQueryResult, error) {
+func (lc *LCC) GetMetric(metric, sourceid, job string) (*logcache_v1.PromQL_InstantQueryResult, error) {
 	if !lc.checkToken() {
 		return new(logcache_v1.PromQL_InstantQueryResult), fmt.Errorf("access token invalid")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\"}", metric, sourceid))
+	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\",job=\"%s\"}", metric, sourceid, job))
 }
 
-// GetRateMetric given range, metric and source id result is returned
-func (lc *LCC) GetRateMetric(start, stop, metric, sourceid, job, offset string, duration int) (*logcache_v1.PromQL_InstantQueryResult, error) {
+// GetAvgRateMetric given range, metric and source id result is returned
+func (lc *LCC) GetAvgRateMetric(metric, sourceid, job, duration, offset string) (float64, error) {
 	if !lc.checkToken() {
-		return new(logcache_v1.PromQL_InstantQueryResult), fmt.Errorf("access token invalid")
+		return 0.0, fmt.Errorf("access token invalid")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\",job=\"%s\"}[%d] offset %s", metric,
+	result, err := lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\",job=\"%s\"}[%s] offset %s))", metric,
 		sourceid,
 		job,
 		duration,
 		offset))
+
+	if err != nil {
+		return 0.0, err
+	}
+
+	return getSingleSampleResult(result.GetVector().GetSamples()), nil
 }
 
-// GetAVGMetric promql average
-func (lc *LCC) GetAVGMetric(start, stop, metric, sourceid, job, offset string) (*logcache_v1.PromQL_InstantQueryResult, error) {
+// GetAvgMetric promql average
+func (lc *LCC) GetAvgMetric(metric, sourceid, job, offset string) (float64, error) {
 	if !lc.checkToken() {
-		return new(logcache_v1.PromQL_InstantQueryResult), fmt.Errorf("access token invalid")
+		return 0.0, fmt.Errorf("access token invalid")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\",job=\"%s\"} offset %s", metric,
+	result, err := lc.client.PromQL(ctx, fmt.Sprintf("avg(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
 		sourceid,
 		job,
 		offset))
+
+	if err != nil {
+		return 0.0, err
+	}
+	return getSingleSampleResult(result.GetVector().GetSamples()), nil
+}
+
+// GetSumMetric promql average
+func (lc *LCC) GetSumMetric(metric, sourceid, job, offset string) (float64, error) {
+	if !lc.checkToken() {
+		return 0.0, fmt.Errorf("access token invalid")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, err := lc.client.PromQL(ctx, fmt.Sprintf("sum(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
+		sourceid,
+		job,
+		offset))
+
+	if err != nil {
+		return 0.0, err
+	}
+	return getSingleSampleResult(result.GetVector().GetSamples()), nil
 }
 
 // Collect updates metrics from log-cache
 func (lc *LCC) Collect() error {
 	lc.Lock()
 	defer lc.Unlock()
+
+	lc.Offset = "2m"
+	lc.Duration = "5m"
+
 	lc.getAvgSystemMetrics(&lc.Metric.TC.System, tcJob)
 	lc.getAvgSystemMetrics(&lc.Metric.Doppler.System, dopplerJob)
 	lc.getAvgSystemMetrics(&lc.Metric.SyslogAdapter.System, syslogAdapterJob)
@@ -353,12 +395,12 @@ func (lc *LCC) Collect() error {
 	lc.sumResult(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, &lc.Metric.Drain.ScheduledDrains)
 	lc.sumResult(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.ScheduledDrains)
 
-	lc.sumResult(ingressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Ingress)
-	lc.sumResult(egressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Egress)
-	lc.sumResult(droppedCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Dropped)
+	lc.setRateMetric(ingressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Ingress)
+	lc.setRateMetric(egressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Egress)
+	lc.setRateMetric(droppedCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Dropped)
 	lc.sumResult(subscriptionsGauge, dopplerSID, dopplerJob, &lc.Metric.Doppler.Subscriptions)
 
-	lc.Metric.Metron.System.Count = lc.sumResult(ingressCounter, metronSID, metronJob, &lc.Metric.Metron.Ingress)
+	lc.sumResult(ingressCounter, metronSID, metronJob, &lc.Metric.Metron.Ingress)
 	lc.sumResult(egressCounter, metronSID, metronJob, &lc.Metric.Metron.Egress)
 	lc.sumResult(droppedCounter, metronSID, metronJob, &lc.Metric.Metron.Dropped)
 
@@ -373,47 +415,48 @@ func (lc *LCC) Collect() error {
 
 // metric helpers
 
+func (lc *LCC) setRateMetric(metric, source, job string, p *float64) {
+	var err error
+	*p, err = lc.GetAvgRateMetric(metric, source, job, lc.Duration, lc.Offset)
+	if err != nil {
+		logger.Fatalln(err)
+	}
+	return
+}
+
+func (lc *LCC) setInstanceCount(system *InstanceMetrics, job string) {
+	result, err := lc.GetMetric(cpuUserGauge, boshSystemMetricsSID, job)
+	if err != nil {
+		logger.Fatalln(err)
+	}
+	sample := result.GetVector().GetSamples()
+	system.Count = int64(len(sample))
+}
+
 func (lc *LCC) getAvgSystemMetrics(system *InstanceMetrics, job string) {
-	system.Count = lc.avgResult(cpuUserGauge, boshSystemMetricsSID, job, &system.CPUUser)
+	lc.avgResult(cpuUserGauge, boshSystemMetricsSID, job, &system.CPUUser)
 	lc.avgResult(cpuWaitGauge, boshSystemMetricsSID, job, &system.CPUWait)
 	lc.avgResult(cpuSYSGauge, boshSystemMetricsSID, job, &system.CPUSys)
 	lc.avgResult(memoryPercentGauge, boshSystemMetricsSID, job, &system.Memory)
+
+	lc.setInstanceCount(system, job)
 }
 
-func (lc *LCC) avgResult(metric, source, job string, p *float64) int64 {
-	result, err := lc.GetMetric(metric, source)
+func (lc *LCC) avgResult(metric, source, job string, p *float64) {
+	var err error
+	*p, err = lc.GetAvgMetric(metric, source, job, lc.Offset)
 	if err != nil {
 		logger.Fatalln(err)
 	}
-	sample := result.GetVector().GetSamples()
-	var sum float64
-	var count int64
-	for i := range sample {
-		if sample[i].GetMetric()["job"] == job {
-			sum += sample[i].GetPoint().GetValue()
-			count++
-		}
-	}
-	*p = sum / float64(count)
-	return count
+	return
 }
 
-func (lc *LCC) sumResult(metric, source, job string, p *int64) int64 {
-	result, err := lc.GetMetric(metric, source)
+func (lc *LCC) sumResult(metric, source, job string, p *float64) {
+	var err error
+	*p, err = lc.GetSumMetric(metric, source, job, lc.Offset)
 	if err != nil {
 		logger.Fatalln(err)
 	}
-	sample := result.GetVector().GetSamples()
-	var sum float64
-	var count int64
-	for i := range sample {
-		if sample[i].GetMetric()["job"] == job {
-			sum += sample[i].GetPoint().GetValue()
-			count++
-		}
-	}
-	*p = int64(sum)
-	return count
 }
 
 func (lc *LCC) Lock() {
@@ -422,4 +465,11 @@ func (lc *LCC) Lock() {
 
 func (lc *LCC) Unlock() {
 	lc.mux.Unlock()
+}
+
+func getSingleSampleResult(sample []*logcache_v1.PromQL_Sample) float64 {
+	for i := range sample {
+		return sample[i].GetPoint().GetValue()
+	}
+	return 0.0
 }
