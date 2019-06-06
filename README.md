@@ -14,8 +14,14 @@ Reports how many syslog drains are configured and how many are actually bound.
 
 Reports subscription, ingress, and dropped metrics for each doppler instance.
 
-### Metron Health
-If a metron agent reports any dropped envelopes this section will display the job and index information.
+### Metron and Reverse Log Proxy Health
+Reports ingress, and dropped metrics for metron and reverse log proxy jobs.
+
+### install
+
+```
+cf install-plugin https://github.com/randomtask1155/firehose-analyzer/releases/download/v1.0.0/firehose-analyzer.osx-1.0.0
+```
 
 ### Usage
 
