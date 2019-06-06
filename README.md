@@ -25,4 +25,4 @@ cf firehose-analyzer
 
 ### Demo
 
-[![asciicast](https://asciinema.org/a/214731.svg)](https://asciinema.org/a/214731)
+[![asciicast](https://asciinema.org/a/pxJsQJm1SWTT0hmR8vhJEyjez.svg)](https://asciinema.org/a/pxJsQJm1SWTT0hmR8vhJEyjez)
