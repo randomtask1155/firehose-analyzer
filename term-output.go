@@ -33,7 +33,7 @@ Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 
 var progressBar = ""
 
-func updateTerm() {
+func updateTerm(lcc *LCC) {
 	lcc.Lock()
 	defer lcc.Unlock()
 
@@ -83,10 +83,10 @@ func updateTerm() {
 	tm.Flush()
 }
 
-func loopTerm() {
+func loopTerm(lcc *LCC) {
 	for {
 		time.Sleep(5 * time.Second)
-		updateTerm()
+		updateTerm(lcc)
 	}
 }
 

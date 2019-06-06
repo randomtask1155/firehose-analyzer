@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -117,23 +116,6 @@ type CacheResult struct {
 	Data   CacheData `json:"data"`
 }
 
-func checkAPI() error {
-	cfcli, err := exec.LookPath("cf")
-	if err != nil {
-		return fmt.Errorf("cf cli lookup failed: %s", err)
-	}
-	// run cf spaces to force a refresh of access token
-	authOut, err := exec.Command(cfcli, "spaces").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", authOut, err)
-	}
-	_, err = exec.Command(cfcli, "curl", "/v2/info").Output()
-	if err != nil {
-		return err
-	}
-	return err
-}
-
 // HTTPClient client used to pass in access token for log cache requests
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -233,87 +215,40 @@ type LCC struct {
 // NewLogCacheClient createa new LCC and returns it
 func NewLogCacheClient(address string) (LCC, error) {
 	lc := LCC{Metric: Metrics{}}
-	err := lc.fetchToken()
-	if err != nil {
-		return lc, err
-	}
+	lc.fetchToken()
 	h := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	tc := tokenHTTPClient{HTTPClient(&h), lc.accessToken}
 	lc.client = logcache.NewClient(address, logcache.WithHTTPClient(&tc))
 	return lc, nil
 }
 
-func (lc *LCC) checkToken() bool {
-	if lc.accessToken == "" {
-		return false
+func (lc *LCC) fetchToken() {
+	var err error
+	lc.accessToken, err = cfCLI.AccessToken()
+	if err != nil {
+		logger.Fatalln(err)
 	}
+}
+
+func (lc *LCC) checkToken() {
 	t, err := jwt.Parse(lc.accessToken[7:len(lc.accessToken)], func(token *jwt.Token) (interface{}, error) { return []byte(""), nil })
 	if err != nil {
 		if err.Error() != jwt.ErrInvalidKeyType.Error() {
 			logger.Printf("Could not parse existing token \"%s\" so  Fetching a new token\n", err)
-			*accessToken = ""
-			lc.accessToken = ""
-			err := lc.fetchToken()
-			if err != nil {
-				logger.Printf("Could not fetch new token: %s\n", err)
-				return false
-			} else {
-				return true
-			}
+			lc.fetchToken()
 		}
 	}
 
 	claims := t.Claims.(jwt.MapClaims)
 	if !claims.VerifyExpiresAt(time.Unix(time.Unix(int64(claims["exp"].(float64)), 0).Unix()-60, 0).Unix(), true) {
-		// access token is going to expire or is expired so fetch a new one
-		lc.accessToken = ""
-		*accessToken = ""
-		err = lc.fetchToken()
-		if err != nil {
-			fmt.Printf("Could not fetch new token: %s\n", err)
-			return false
-		}
+		lc.fetchToken() // fetch new before expire
 	}
-	return true
-}
-
-func (lc *LCC) fetchToken() error {
-
-	if *accessToken != "" {
-		lc.accessToken = *accessToken
-		return nil
-	}
-
-	//TODO check api target and logcache system domains match
-
-	cfcli, err := exec.LookPath("cf")
-	if err != nil {
-		return fmt.Errorf("cf cli lookup failed: %s", err)
-	}
-
-	authOut, err := exec.Command(cfcli, "spaces").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Make sure you have recently logged in with cf cli: %s: %s", authOut, err)
-	}
-	_, err = exec.Command(cfcli, "curl", "/v2/info").Output()
-	if err != nil {
-		return fmt.Errorf("Make sure you have recently logged in with cf cli: %s", err)
-	}
-
-	token, err := exec.Command(cfcli, "oauth-token").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Make sure you have recently logged in with cf cli: %s", err)
-	}
-
-	lc.accessToken = fmt.Sprintf("%s", token[0:len(token)-1])
-	return nil
 }
 
 // GetMetric given metric and source id result is returned
 func (lc *LCC) GetMetric(metric, sourceid, job string) (*logcache_v1.PromQL_InstantQueryResult, error) {
-	if !lc.checkToken() {
-		return new(logcache_v1.PromQL_InstantQueryResult), fmt.Errorf("access token invalid")
-	}
+	lc.checkToken()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\",job=\"%s\"}", metric, sourceid, job))
@@ -321,9 +256,7 @@ func (lc *LCC) GetMetric(metric, sourceid, job string) (*logcache_v1.PromQL_Inst
 
 // GetAvgRateMetric given range, metric and source id result is returned
 func (lc *LCC) GetAvgRateMetric(metric, sourceid, job, duration, offset string) (float64, error) {
-	if !lc.checkToken() {
-		return 0.0, fmt.Errorf("access token invalid")
-	}
+	lc.checkToken()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var result *logcache_v1.PromQL_InstantQueryResult
@@ -350,9 +283,7 @@ func (lc *LCC) GetAvgRateMetric(metric, sourceid, job, duration, offset string) 
 
 // GetAvgMetric promql average
 func (lc *LCC) GetAvgMetric(metric, sourceid, job, offset string) (float64, error) {
-	if !lc.checkToken() {
-		return 0.0, fmt.Errorf("access token invalid")
-	}
+	lc.checkToken()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := lc.client.PromQL(ctx, fmt.Sprintf("avg(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
@@ -368,9 +299,7 @@ func (lc *LCC) GetAvgMetric(metric, sourceid, job, offset string) (float64, erro
 
 // GetSumMetric promql average
 func (lc *LCC) GetSumMetric(metric, sourceid, job, offset string) (float64, error) {
-	if !lc.checkToken() {
-		return 0.0, fmt.Errorf("access token invalid")
-	}
+	lc.checkToken()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := lc.client.PromQL(ctx, fmt.Sprintf("sum(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
