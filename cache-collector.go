@@ -14,32 +14,7 @@ import (
 )
 
 /*
-Welcome to Firehose Analyzer - Thu Apr 25 09:42:18 CDT 2019
-
-Job                    Instance-Counts     CPU-User     CPU-Sys     CPU-Wait      Memory
-----------------------------------------------------------------------------------------
-Traffic Controller     1                    2.20         1.30        0.00         35.00
-Doppler                1                    3.60         2.80        0.00         68.00
-Syslog Aadapter        1                    0.20         0.30        0.00         30.00
-Syslog Scheduler       1                    0.30         0.30        0.00         30.00
-
-Drain Information:
-Syslog Adapter drain bindings  : 0
-Syslog Scheduler drains        : 0
-Doppler Sinks Dropped          : 0
-
-Doppler Message Rate Capcity   : 898.00
-
-Doppler						Subscriptions	Ingress	Dropped	Loss
-----------------------------------------------------------------------------------------
-doppler/2e771884-1b9a-43d2-a601-149935388ad5	7		898	0	0.00
-
-
-Metron Health: Report any metron agents that are dropping envelopes
-No unhealthy Metron Agents to report :-)
-
-
-
+SOME NOTES
 {
   "status": "success",
   "data": {
@@ -77,9 +52,6 @@ cf query 'rate(ingress{source_id="doppler"}[5m] offset 2m)' | jq
 
 promql notes
 https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
-
-
-./firehose-analyzer -sys run-35.haas-59.pez.pivotal.io
 
 */
 
@@ -130,9 +102,7 @@ func (c *tokenHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if len(c.accessToken) > 0 {
 		req.Header.Set("Authorization", c.accessToken)
 	}
-
 	return c.c.Do(req)
-
 }
 
 // InstanceMetrics average system metrics for instance groups
@@ -145,6 +115,7 @@ type InstanceMetrics struct {
 	Name    string // name
 }
 
+// TrafficControllerMetrics TC metrics
 type TrafficControllerMetrics struct {
 	System           InstanceMetrics
 	SlowConsumers    float64
@@ -154,6 +125,13 @@ type TrafficControllerMetrics struct {
 	ContainerLatency float64
 }
 
+type RLPMetrics struct {
+	Egress  float64
+	Ingress float64
+	Dropped float64
+}
+
+// MetronMetrics metron metrics
 type MetronMetrics struct {
 	System      InstanceMetrics
 	Ingress     float64
@@ -163,6 +141,7 @@ type MetronMetrics struct {
 	Name        string // name/index
 }
 
+// DopplerMetrics doppler metrics
 type DopplerMetrics struct {
 	System              InstanceMetrics
 	MessageRateCapacity float64
@@ -173,14 +152,17 @@ type DopplerMetrics struct {
 	Name                string // name/index
 }
 
+// SyslogAdapterMetrics syslog adapter metrics
 type SyslogAdapterMetrics struct {
 	System InstanceMetrics
 }
 
+// SyslogSchedulerMetrics syslog scheduler metrics
 type SyslogSchedulerMetrics struct {
 	System InstanceMetrics
 }
 
+// DrainMetrics Drain metrics
 type DrainMetrics struct {
 	DrainBindings   float64
 	ScheduledDrains float64
@@ -192,6 +174,7 @@ type Metrics struct {
 	System          []InstanceMetrics
 	Doppler         DopplerMetrics
 	TC              TrafficControllerMetrics
+	RLP             RLPMetrics
 	Metron          MetronMetrics
 	Drain           DrainMetrics
 	DopplerInstance DopplerMetrics
@@ -211,6 +194,14 @@ type LCC struct {
 	Offset      string
 	Duration    string
 }
+
+var (
+	queryAvgRateJob string
+	queryAvgRate    string
+	querySumRateJob string
+	querySumJob     string
+	queryMetricJob  string
+)
 
 // NewLogCacheClient createa new LCC and returns it
 func NewLogCacheClient(address string) (LCC, error) {
@@ -245,72 +236,46 @@ func (lc *LCC) checkToken() {
 	}
 }
 
-// GetMetric given metric and source id result is returned
-func (lc *LCC) GetMetric(metric, sourceid, job string) (*logcache_v1.PromQL_InstantQueryResult, error) {
+// GetResult given metric and source id result is returned
+func (lc *LCC) GetResult(metric, sourceid, job, q string) (*logcache_v1.PromQL_InstantQueryResult, error) {
 	lc.checkToken()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return lc.client.PromQL(ctx, fmt.Sprintf("%s{source_id=\"%s\",job=\"%s\"}", metric, sourceid, job))
+	var result *logcache_v1.PromQL_InstantQueryResult
+	var err error
+	if job != "" {
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid, job))
+	} else {
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid))
+	}
+
+	return result, err
 }
 
-// GetAvgRateMetric given range, metric and source id result is returned
-func (lc *LCC) GetAvgRateMetric(metric, sourceid, job, duration, offset string) (float64, error) {
+// GetSinlgeMetric given range, metric and source id result is returned
+func (lc *LCC) GetSinlgeMetric(metric, sourceid, job, q string) float64 {
 	lc.checkToken()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var result *logcache_v1.PromQL_InstantQueryResult
 	var err error
 	if job != "" {
-		result, err = lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\",job=\"%s\"}[%s] offset %s))", metric,
-			sourceid,
-			job,
-			duration,
-			offset))
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid, job))
 	} else {
-		result, err = lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\"}[%s] offset %s))", metric,
-			sourceid,
-			duration,
-			offset))
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid))
 	}
 
 	if err != nil {
-		return 0.0, err
+		if job != "" {
+			logger.Printf(q, metric, sourceid, job)
+		} else {
+			logger.Printf(q, metric, sourceid)
+		}
+		logger.Fatalln(err)
 	}
 
-	return getSingleSampleResult(result.GetVector().GetSamples()), nil
-}
-
-// GetAvgMetric promql average
-func (lc *LCC) GetAvgMetric(metric, sourceid, job, offset string) (float64, error) {
-	lc.checkToken()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	result, err := lc.client.PromQL(ctx, fmt.Sprintf("avg(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
-		sourceid,
-		job,
-		offset))
-
-	if err != nil {
-		return 0.0, err
-	}
-	return getSingleSampleResult(result.GetVector().GetSamples()), nil
-}
-
-// GetSumMetric promql average
-func (lc *LCC) GetSumMetric(metric, sourceid, job, offset string) (float64, error) {
-	lc.checkToken()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	result, err := lc.client.PromQL(ctx, fmt.Sprintf("sum(%s{source_id=\"%s\",job=\"%s\"} offset %s)", metric,
-		sourceid,
-		job,
-		offset))
-
-	if err != nil {
-		return 0.0, err
-	}
-	return getSingleSampleResult(result.GetVector().GetSamples()), nil
+	return getSingleSampleResult(result.GetVector().GetSamples())
 }
 
 // Collect updates metrics from log-cache
@@ -318,52 +283,50 @@ func (lc *LCC) Collect() error {
 	lc.Lock()
 	defer lc.Unlock()
 
-	lc.Offset = "2m"
-	lc.Duration = "5m"
+	lc.updateQeries("2m", "5m")
 
 	lc.getAvgSystemMetrics(&lc.Metric.TC.System, tcJob)
 	lc.getAvgSystemMetrics(&lc.Metric.Doppler.System, dopplerJob)
 	lc.getAvgSystemMetrics(&lc.Metric.SyslogAdapter.System, syslogAdapterJob)
 	lc.getAvgSystemMetrics(&lc.Metric.SyslogScheduler.System, syslogSchedulerJob)
 
-	lc.sumResult(appStreamsGauge, trafficControllerSID, tcJob, &lc.Metric.TC.AppStreams)
-	lc.setRateMetric(slowConsumerCounter, trafficControllerSID, tcJob, &lc.Metric.TC.SlowConsumers)
+	lc.Metric.TC.AppStreams = lc.GetSinlgeMetric(appStreamsGauge, trafficControllerSID, tcJob, querySumJob)
+	lc.Metric.TC.SlowConsumers = lc.GetSinlgeMetric(slowConsumerCounter, trafficControllerSID, tcJob, queryAvgRateJob)
 
-	lc.sumResult(drainBindingsGauge, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.DrainBindings)
-	lc.sumResult(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, &lc.Metric.Drain.ScheduledDrains)
-	lc.setRateMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.ScheduledDrains)
+	lc.Metric.Drain.DrainBindings = lc.GetSinlgeMetric(drainBindingsGauge, syslogDrainAdapterSID, syslogAdapterJob, querySumJob)
+	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, querySumJob)
+	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
 
-	lc.setRateMetric(ingressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Ingress)
-	lc.setRateMetric(egressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Egress)
-	lc.setRateMetric(droppedCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Dropped)
-	lc.sumResult(subscriptionsGauge, dopplerSID, dopplerJob, &lc.Metric.Doppler.Subscriptions)
+	lc.Metric.Doppler.Ingress = lc.GetSinlgeMetric(ingressCounter, dopplerSID, dopplerJob, queryAvgRateJob)
+	lc.Metric.Doppler.Egress = lc.GetSinlgeMetric(egressCounter, dopplerSID, dopplerJob, queryAvgRateJob)
+	lc.Metric.Doppler.Dropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, dopplerJob, querySumRateJob)
+	lc.Metric.Doppler.Subscriptions = lc.GetSinlgeMetric(subscriptionsGauge, dopplerSID, dopplerJob, querySumJob)
 
-	lc.setRateMetric(ingressCounter, metronSID, "", &lc.Metric.Metron.Ingress)
-	lc.setRateMetric(egressCounter, metronSID, "", &lc.Metric.Metron.Egress)
-	lc.setRateMetric(droppedCounter, metronSID, "", &lc.Metric.Metron.Dropped)
+	lc.Metric.Metron.Ingress = lc.GetSinlgeMetric(ingressCounter, metronSID, "", queryAvgRate)
+	lc.Metric.Metron.Egress = lc.GetSinlgeMetric(egressCounter, metronSID, "", queryAvgRate)
+	lc.Metric.Metron.Dropped = lc.GetSinlgeMetric(droppedCounter, metronSID, "", querySumRateJob)
+
+	lc.Metric.RLP.Ingress = lc.GetSinlgeMetric(ingressCounter, rlpSID, tcJob, queryAvgRateJob)
+	lc.Metric.RLP.Egress = lc.GetSinlgeMetric(egressCounter, rlpSID, tcJob, queryAvgRateJob)
+	lc.Metric.RLP.Dropped = lc.GetSinlgeMetric(droppedCounter, rlpSID, tcJob, querySumRateJob)
 
 	lc.Metric.Doppler.MessageRateCapacity = float64(lc.Metric.Doppler.Ingress) / float64(lc.Metric.Doppler.System.Count)
-
-	// TODO Reverse Proxy Loss Rate
-	// https://docs.pivotal.io/pivotalcf/2-5/monitoring/key-cap-scaling.html#rlp-ksi
-
-	//logger.Printf("%v\n", *lc)
 	return nil
 }
 
-// metric helpers
-
-func (lc *LCC) setRateMetric(metric, source, job string, p *float64) {
-	var err error
-	*p, err = lc.GetAvgRateMetric(metric, source, job, lc.Duration, lc.Offset)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-	return
+func (lc *LCC) updateQeries(offset, duration string) {
+	lc.Offset = offset
+	lc.Duration = duration
+	queryAvgRateJob = "avg(rate(%s{source_id=\"%s\",job=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
+	queryAvgRate = "avg(rate(%s{source_id=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
+	querySumRateJob = "sum(rate(%s{source_id=\"%s\",job=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
+	querySumJob = "sum(%s{source_id=\"%s\",job=\"%s\"} offset " + lc.Offset + ")"
+	queryMetricJob = "%s{source_id=\"%s\",job=\"%s\"}"
 }
 
+// metric helpers
 func (lc *LCC) setInstanceCount(system *InstanceMetrics, job string) {
-	result, err := lc.GetMetric(cpuUserGauge, boshSystemMetricsSID, job)
+	result, err := lc.GetResult(cpuUserGauge, boshSystemMetricsSID, job, queryMetricJob)
 	if err != nil {
 		logger.Fatalln(err)
 	}
@@ -372,35 +335,20 @@ func (lc *LCC) setInstanceCount(system *InstanceMetrics, job string) {
 }
 
 func (lc *LCC) getAvgSystemMetrics(system *InstanceMetrics, job string) {
-	lc.avgResult(cpuUserGauge, boshSystemMetricsSID, job, &system.CPUUser)
-	lc.avgResult(cpuWaitGauge, boshSystemMetricsSID, job, &system.CPUWait)
-	lc.avgResult(cpuSYSGauge, boshSystemMetricsSID, job, &system.CPUSys)
-	lc.avgResult(memoryPercentGauge, boshSystemMetricsSID, job, &system.Memory)
+	system.CPUUser = lc.GetSinlgeMetric(cpuUserGauge, boshSystemMetricsSID, job, queryAvgRateJob)
+	system.CPUWait = lc.GetSinlgeMetric(cpuWaitGauge, boshSystemMetricsSID, job, queryAvgRateJob)
+	system.CPUSys = lc.GetSinlgeMetric(cpuSYSGauge, boshSystemMetricsSID, job, queryAvgRateJob)
+	system.Memory = lc.GetSinlgeMetric(memoryPercentGauge, boshSystemMetricsSID, job, queryAvgRateJob)
 
 	lc.setInstanceCount(system, job)
 }
 
-func (lc *LCC) avgResult(metric, source, job string, p *float64) {
-	var err error
-	*p, err = lc.GetAvgMetric(metric, source, job, lc.Offset)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-	return
-}
-
-func (lc *LCC) sumResult(metric, source, job string, p *float64) {
-	var err error
-	*p, err = lc.GetSumMetric(metric, source, job, lc.Offset)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-}
-
+// Lock used to lock when updating/reading metrics
 func (lc *LCC) Lock() {
 	lc.mux.Lock()
 }
 
+// Unlock used to unlock after reading/updating metrics
 func (lc *LCC) Unlock() {
 	lc.mux.Unlock()
 }

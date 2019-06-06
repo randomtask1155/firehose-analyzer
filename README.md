@@ -20,15 +20,7 @@ If a metron agent reports any dropped envelopes this section will display the jo
 ### Usage
 
 ```
-Usage of firehose-analyzer:
-  -api string
-    	CF API endpoint https://api.system.domain.com
-  -o string
-    	Specifiy an output file that records data in csv format
-  -token string
-    	Provide an access token used to authenticate with doppler endpoint. Defaults to ~/.cf/config.json
-  -url string
-    	Web socket address example: wss://doppler.system.domain:443
+cf firehose-analyzer
 ```
 
 ### Demo

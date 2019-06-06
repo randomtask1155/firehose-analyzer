@@ -26,7 +26,7 @@ type BasicPlugin struct{}
 func (c *BasicPlugin) Run(cliConnection plugin.CliConnection, args []string) {
 	// Ensure that we called the command basic-plugin-command
 	cfCLI = cliConnection
-	if args[0] == "firehose-analzyer" {
+	if args[0] == "firehose-analyzer" {
 		startAnalyzer()
 	}
 }
@@ -34,7 +34,7 @@ func (c *BasicPlugin) Run(cliConnection plugin.CliConnection, args []string) {
 // GetMetadata interface for plugin api
 func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 	return plugin.PluginMetadata{
-		Name: "firehose-analzyer",
+		Name: "firehose-analyzer",
 		Version: plugin.VersionType{
 			Major: 1,
 			Minor: 0,
@@ -47,13 +47,13 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 		},
 		Commands: []plugin.Command{
 			{
-				Name:     "firehose-analzyer",
+				Name:     "firehose-analyzer",
 				HelpText: "Displays basic firehose metrics for troubleshooting scaling issues",
 
 				// UsageDetails is optional
 				// It is used to show help of usage of each command
 				UsageDetails: plugin.Usage{
-					Usage: "firehose-analzyer\n   cf firehose-analzyer",
+					Usage: "firehose-analyzer\n   cf firehose-analyzer",
 				},
 			},
 		},
@@ -74,6 +74,7 @@ const (
 	metronSID              = "metron"
 	logCacheSID            = "log-cache"
 	logCacheNozzleSID      = "log-cache-nozzle"
+	rlpSID                 = "reverse_log_proxy"
 	boshSystemMetricsSID   = "bosh-system-metrics-forwarder" // cpu and memory
 
 	// common stats
