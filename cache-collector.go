@@ -326,11 +326,20 @@ func (lc *LCC) GetAvgRateMetric(metric, sourceid, job, duration, offset string) 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	result, err := lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\",job=\"%s\"}[%s] offset %s))", metric,
-		sourceid,
-		job,
-		duration,
-		offset))
+	var result *logcache_v1.PromQL_InstantQueryResult
+	var err error
+	if job != "" {
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\",job=\"%s\"}[%s] offset %s))", metric,
+			sourceid,
+			job,
+			duration,
+			offset))
+	} else {
+		result, err = lc.client.PromQL(ctx, fmt.Sprintf("avg(rate(%s{source_id=\"%s\"}[%s] offset %s))", metric,
+			sourceid,
+			duration,
+			offset))
+	}
 
 	if err != nil {
 		return 0.0, err
@@ -389,20 +398,20 @@ func (lc *LCC) Collect() error {
 	lc.getAvgSystemMetrics(&lc.Metric.SyslogScheduler.System, syslogSchedulerJob)
 
 	lc.sumResult(appStreamsGauge, trafficControllerSID, tcJob, &lc.Metric.TC.AppStreams)
-	lc.sumResult(slowConsumerCounter, trafficControllerSID, tcJob, &lc.Metric.TC.SlowConsumers)
+	lc.setRateMetric(slowConsumerCounter, trafficControllerSID, tcJob, &lc.Metric.TC.SlowConsumers)
 
 	lc.sumResult(drainBindingsGauge, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.DrainBindings)
 	lc.sumResult(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, &lc.Metric.Drain.ScheduledDrains)
-	lc.sumResult(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.ScheduledDrains)
+	lc.setRateMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, &lc.Metric.Drain.ScheduledDrains)
 
 	lc.setRateMetric(ingressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Ingress)
 	lc.setRateMetric(egressCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Egress)
 	lc.setRateMetric(droppedCounter, dopplerSID, dopplerJob, &lc.Metric.Doppler.Dropped)
 	lc.sumResult(subscriptionsGauge, dopplerSID, dopplerJob, &lc.Metric.Doppler.Subscriptions)
 
-	lc.sumResult(ingressCounter, metronSID, metronJob, &lc.Metric.Metron.Ingress)
-	lc.sumResult(egressCounter, metronSID, metronJob, &lc.Metric.Metron.Egress)
-	lc.sumResult(droppedCounter, metronSID, metronJob, &lc.Metric.Metron.Dropped)
+	lc.setRateMetric(ingressCounter, metronSID, "", &lc.Metric.Metron.Ingress)
+	lc.setRateMetric(egressCounter, metronSID, "", &lc.Metric.Metron.Egress)
+	lc.setRateMetric(droppedCounter, metronSID, "", &lc.Metric.Metron.Dropped)
 
 	lc.Metric.Doppler.MessageRateCapacity = float64(lc.Metric.Doppler.Ingress) / float64(lc.Metric.Doppler.System.Count)
 
