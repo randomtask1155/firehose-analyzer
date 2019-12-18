@@ -23,6 +23,7 @@ Syslog Adapter drain bindings  : %.0f
 Syslog Scheduler drains        : %.0f
 Doppler Sinks Dropped          : %.0f
 
+Doppler Ingress Max Dropped    : %.0f
 Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 
 %s
@@ -80,6 +81,7 @@ func updateTerm(lcc *LCC) {
 		lcc.Metric.Drain.DrainBindings,
 		lcc.Metric.Drain.ScheduledDrains,
 		lcc.Metric.Drain.SinksDropped,
+		lcc.Metric.Doppler.IngressDropped,
 		lcc.Metric.Doppler.MessageRateCapacity,
 		envStats,
 		progressBar)

@@ -148,6 +148,7 @@ type DopplerMetrics struct {
 	Subscriptions       float64
 	Egress              float64
 	Ingress             float64
+	IngressDropped      float64
 	Dropped             float64
 	Name                string // name/index
 }
@@ -196,11 +197,13 @@ type LCC struct {
 }
 
 var (
-	queryAvgRateJob string
-	queryAvgRate    string
-	querySumRateJob string
-	querySumJob     string
-	queryMetricJob  string
+	queryAvgRateJob         string
+	queryAvgRate            string
+	querySumRateJob         string
+	querySumRate            string
+	querySumJob             string
+	queryMetricJob          string
+	queryIngressMaxOverTime string
 )
 
 // NewLogCacheClient createa new LCC and returns it
@@ -298,13 +301,14 @@ func (lc *LCC) Collect() error {
 	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
 
 	lc.Metric.Doppler.Ingress = lc.GetSinlgeMetric(ingressCounter, dopplerSID, dopplerJob, queryAvgRateJob)
+	lc.Metric.Doppler.IngressDropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, "", queryIngressMaxOverTime)
 	lc.Metric.Doppler.Egress = lc.GetSinlgeMetric(egressCounter, dopplerSID, dopplerJob, queryAvgRateJob)
 	lc.Metric.Doppler.Dropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, dopplerJob, querySumRateJob)
 	lc.Metric.Doppler.Subscriptions = lc.GetSinlgeMetric(subscriptionsGauge, dopplerSID, dopplerJob, querySumJob)
 
 	lc.Metric.Metron.Ingress = lc.GetSinlgeMetric(ingressCounter, metronSID, "", queryAvgRate)
 	lc.Metric.Metron.Egress = lc.GetSinlgeMetric(egressCounter, metronSID, "", queryAvgRate)
-	lc.Metric.Metron.Dropped = lc.GetSinlgeMetric(droppedCounter, metronSID, "", querySumRateJob)
+	lc.Metric.Metron.Dropped = lc.GetSinlgeMetric(droppedCounter, metronSID, "", querySumRate)
 
 	lc.Metric.RLP.Ingress = lc.GetSinlgeMetric(ingressCounter, rlpSID, tcJob, queryAvgRateJob)
 	lc.Metric.RLP.Egress = lc.GetSinlgeMetric(egressCounter, rlpSID, tcJob, queryAvgRateJob)
@@ -320,8 +324,10 @@ func (lc *LCC) updateQeries(offset, duration string) {
 	queryAvgRateJob = "avg(rate(%s{source_id=\"%s\",job=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
 	queryAvgRate = "avg(rate(%s{source_id=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
 	querySumRateJob = "sum(rate(%s{source_id=\"%s\",job=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
+	querySumRate = "sum(rate(%s{source_id=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
 	querySumJob = "sum(%s{source_id=\"%s\",job=\"%s\"} offset " + lc.Offset + ")"
 	queryMetricJob = "%s{source_id=\"%s\",job=\"%s\"}"
+	queryIngressMaxOverTime = "sum(max_over_time(%s{source_id=\"%s\", direction=\"ingress\"}[" + lc.Duration + "])) by (index) > 0"
 }
 
 // metric helpers
