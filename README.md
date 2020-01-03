@@ -70,17 +70,17 @@ Average Slow Consumer Rate
 
 #### Doppler Metrics
 
-Average Ingress Rate
+Sum Ingress Rate
 
-`'avg(rate(ingress{source_id="doppler",job="doppler"}[5m] offset 2m))'`
+`'sum(rate(ingress{source_id="doppler",job="doppler"}[5m] offset 2m))'`
 
 Maximum Ingress Dropped for given duration
 
 `'sum(max_over_time(dropped{source_id="doppler", direction="ingress"}[5m])) by (index) > 0'`
 
-Average Egress Rate
+Sum Egress Rate
 
-`'avg(rate(egress{source_id="doppler",job="doppler"}[5m] offset 2m))'`
+`'sum(rate(egress{source_id="doppler",job="doppler"}[5m] offset 2m))'`
 
 Sum of Dropped rate 
 
@@ -92,13 +92,13 @@ Number of Doppler Subscriptions
 
 #### Metron Metrics
 
-Average Ingress rate across all metron/loggregator agents
+Sum Ingress rate across all metron/loggregator agents
 
-`'avg(rate(ingress{source_id="metron"}[5m] offset 2m))'`
+`'sum(rate(ingress{source_id="metron"}[5m] offset 2m))'`
 
-Averate Egress rate across all metron agents
+Sum Egress rate across all metron agents
 
-`'avg(rate(ingress{source_id="metron"}[5m] offset 2m))'`
+`'sum(rate(ingress{source_id="metron"}[5m] offset 2m))'`
 
 Sum Rate of dropped envelopes
 
@@ -106,13 +106,13 @@ Sum Rate of dropped envelopes
 
 #### Reverse Log Proxy Metrics
 
-Average ingress Rate
+Sum ingress Rate
 
-`'avg(rate(ingress{source_id="reverse_log_proxy",job="loggregator_trafficcontroller"}[5m] offset 2m))'`
+`'sum(rate(ingress{source_id="reverse_log_proxy",job="loggregator_trafficcontroller"}[5m] offset 2m))'`
 
-Average egress Rate
+Sum egress Rate
 
-`'avg(rate(egress{source_id="reverse_log_proxy",job="loggregator_trafficcontroller"}[5m] offset 2m))'`
+`'sum(rate(egress{source_id="reverse_log_proxy",job="loggregator_trafficcontroller"}[5m] offset 2m))'`
 
 Sum of rate of drops
 
