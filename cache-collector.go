@@ -301,14 +301,14 @@ func (lc *LCC) Collect() error {
 	lc.Metric.Drain.SinksDropped = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
 
 	lc.Metric.Doppler.Ingress = lc.GetSinlgeMetric(ingressCounter, dopplerSID, dopplerJob, querySumRateJob)
-  lc.Metric.Doppler.IngressDropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, "", queryIngressMaxOverTime)
+	lc.Metric.Doppler.IngressDropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, "", queryIngressMaxOverTime)
 	lc.Metric.Doppler.Egress = lc.GetSinlgeMetric(egressCounter, dopplerSID, dopplerJob, querySumRateJob)
 	lc.Metric.Doppler.Dropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, dopplerJob, querySumRateJob)
 	lc.Metric.Doppler.Subscriptions = lc.GetSinlgeMetric(subscriptionsGauge, dopplerSID, dopplerJob, querySumJob)
 
-	lc.Metric.Metron.Ingress = lc.GetSinlgeMetric(ingressCounter, metronSID, "", querySumRateJob)
-	lc.Metric.Metron.Egress = lc.GetSinlgeMetric(egressCounter, metronSID, "", querySumRateJob)
-	lc.Metric.Metron.Dropped = lc.GetSinlgeMetric(droppedCounter, metronSID, "", querySumRateJob)
+	lc.Metric.Metron.Ingress = lc.GetSinlgeMetric(ingressCounter, metronSID, "", querySumRate)
+	lc.Metric.Metron.Egress = lc.GetSinlgeMetric(egressCounter, metronSID, "", querySumRate)
+	lc.Metric.Metron.Dropped = lc.GetSinlgeMetric(droppedCounter, metronSID, "", querySumRate)
 
 	lc.Metric.RLP.Ingress = lc.GetSinlgeMetric(ingressCounter, rlpSID, tcJob, querySumRateJob)
 	lc.Metric.RLP.Egress = lc.GetSinlgeMetric(egressCounter, rlpSID, tcJob, querySumRateJob)

@@ -41,7 +41,7 @@ func updateTerm(lcc *LCC) {
 	tm.Clear()
 	tm.MoveCursor(1, 1)
 
-	envStats := "Job\t\t\t\tSubscriptions\tAVG-Ingress/s\tDropped/s\tLoss\n"
+	envStats := "Job\t\t\t\tSubscriptions\tSum-Ingress/s\tDropped/s\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
 	envStats += fmt.Sprintf("Doppler\t\t\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.Doppler.Subscriptions,
 		lcc.Metric.Doppler.Ingress,
