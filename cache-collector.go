@@ -298,7 +298,7 @@ func (lc *LCC) Collect() error {
 
 	lc.Metric.Drain.DrainBindings = lc.GetSinlgeMetric(drainBindingsGauge, syslogDrainAdapterSID, syslogAdapterJob, querySumJob)
 	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, querySumJob)
-	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
+	lc.Metric.Drain.SinksDropped = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
 
 	lc.Metric.Doppler.Ingress = lc.GetSinlgeMetric(ingressCounter, dopplerSID, dopplerJob, queryAvgRateJob)
 	lc.Metric.Doppler.IngressDropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, "", queryIngressMaxOverTime)
