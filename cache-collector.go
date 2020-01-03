@@ -286,7 +286,7 @@ func (lc *LCC) Collect() error {
 	lc.Lock()
 	defer lc.Unlock()
 
-	lc.updateQeries("2m", "5m")
+	lc.updateQeries(*sampleOffset, *sampleDuration)
 
 	lc.getAvgSystemMetrics(&lc.Metric.TC.System, tcJob)
 	lc.getAvgSystemMetrics(&lc.Metric.Doppler.System, dopplerJob)
