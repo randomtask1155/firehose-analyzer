@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,8 @@ var (
 	accessToken    string
 	systemDomain   string
 	cfCLI          plugin.CliConnection
+	sampleDuration = flag.String("d", "5m", "Specify sample duration")
+	sampleOffset   = flag.String("o", "2m", "Specify sample offset")
 )
 
 // BasicPlugin implement cf cli plugin api
@@ -37,8 +40,8 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 		Name: "firehose-analyzer",
 		Version: plugin.VersionType{
 			Major: 1,
-			Minor: 1,
-			Build: 2,
+			Minor: 2,
+			Build: 0,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
@@ -53,7 +56,12 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 				// UsageDetails is optional
 				// It is used to show help of usage of each command
 				UsageDetails: plugin.Usage{
-					Usage: "firehose-analyzer\n   cf firehose-analyzer",
+					Usage: `
+cf firehose-analyzer <options>
+
+Options
+-d <duration>  - default is 5m					
+-o <offset>    - default is 2m`,
 				},
 			},
 		},
