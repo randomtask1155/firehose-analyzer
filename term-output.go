@@ -10,6 +10,7 @@ import (
 
 var screenTemplate = `
 Welcome to Firehose Analyzer - %s
+Selected duration=%s and offset=%s
 
 Job                    Instance-Counts     CPU-User     CPU-Sys     CPU-Wait      Memory
 ----------------------------------------------------------------------------------------
@@ -58,6 +59,8 @@ func updateTerm(lcc *LCC) {
 
 	tm.Printf(screenTemplate,
 		time.Now().Format(time.UnixDate),
+		*sampleDuration,
+		*sampleOffset,
 		lcc.Metric.TC.System.Count,
 		lcc.Metric.TC.System.CPUUser,
 		lcc.Metric.TC.System.CPUSys,
