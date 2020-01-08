@@ -2,6 +2,8 @@
 
 Collects a summary of firehose activity by reading ValueMetric and CountEvent metrics from the firehose.
 
+Note: Version 1.3.x support PAS 2.7 and version 1.2.x Supports PAS 2.6 or earlier
+
 ### Instance stats
 
 Averages the cpu and memory stats accorss instance groups.
@@ -44,19 +46,37 @@ There are three metrics system_cpu_user, system_cpu_wait, and system_cpu_sys
 
 `'avg(rate(system_cpu_user{source_id="bosh-system-metrics-forwarder",job="loggregator_trafficcontroller"}[5m]2m))'`
 
-#### Syslog Drain Metrics
+#### Syslog Agent Metrics
 
-Number of drain Bindings
+Sum Ingress Rate
+`'sum(rate(ingress{source_id="syslog_agent"}[5m] offset 2m))'`
 
-`'sum(drain_bindings{source_id="drain_adapter",job="syslog_adapter"} offset 2m)'`
+Sum Egress Rate
+`'sum(rate(egress{source_id="syslog_agent"}[5m] offset 2m))'`
 
-Number of syslog drain drops
+Syslog Agent Drops
 
-`'sum(dropped{source_id="drain_adapter",job="syslog_adapter"} offset 2m)'`
+`'sum(rate(dropped{source_id="syslog_agent"}[5m] offset 2m))'`
 
-Number of scheduled drains
+Syslog Agent Drains
 
-`'sum(drains{source_id="drain_scheduler",job="syslog_scheduler"} offset 2m)'`
+`'min(%s{source_id="syslog_agent"} offset 2m)'`
+
+Syslog Agent Active Drains
+
+`'min(active_drains{source_id="syslog_agent"} offset 2m)'`
+
+Syslog Agent Invalid Drains
+
+`'min(invalid_drains{source_id="syslog_agent"} offset 2m)'`
+
+Syslog Agent Non-APP Drains
+
+`'min(non_app_drains{source_id="syslog_agent"} offset 2m)'`
+
+Syslog Agent Blacklisted Drains
+
+`'min(blacklisted_drains{source_id="syslog_agent"} offset 2m)'`
 
 #### TrafficController Metrics
 
@@ -117,3 +137,20 @@ Sum egress Rate
 Sum of rate of drops
 
 `'sum(rate(dropped{source_id="reverse_log_proxy"}[5m] offset 2m))'`
+
+
+#### Deprecated syslog adapter metrics
+
+##### Syslog Drain Metrics
+
+Number of drain Bindings
+
+`'sum(drain_bindings{source_id="drain_adapter",job="syslog_adapter"} offset 2m)'`
+
+Number of syslog drain drops
+
+`'sum(dropped{source_id="drain_adapter",job="syslog_adapter"} offset 2m)'`
+
+Number of scheduled drains
+
+`'sum(drains{source_id="drain_scheduler",job="syslog_scheduler"} offset 2m)'`
