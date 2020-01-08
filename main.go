@@ -59,8 +59,8 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 		Name: "firehose-analyzer",
 		Version: plugin.VersionType{
 			Major: 1,
-			Minor: 2,
-			Build: 1,
+			Minor: 3,
+			Build: 0,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
@@ -83,16 +83,15 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 }
 
 const (
-	tcJob              = "loggregator_trafficcontroller"
-	dopplerJob         = "doppler"
-	syslogAdapterJob   = "syslog_adapter"
-	syslogSchedulerJob = "syslog_scheduler"
-	metronJob          = "metron"
+	tcJob      = "loggregator_trafficcontroller"
+	dopplerJob = "doppler"
+	metronJob  = "metron"
 
 	trafficControllerSID   = "traffic_controller"
 	dopplerSID             = "doppler"
 	syslogDrainAdapterSID  = "drain_adapter"
 	syslogDrainScheduleSID = "drain_scheduler"
+	syslogAgentSID         = "syslog_agent"
 	metronSID              = "metron"
 	logCacheSID            = "log-cache"
 	logCacheNozzleSID      = "log-cache-nozzle"
@@ -123,12 +122,12 @@ const (
 	sinksDroppedCounter      = "sinks_dropped"
 	sinkErrorsDroppedCounter = "sinks_errors_dropped"
 
-	// syslogDrainAdapterSID metrics
-	drainBindingsGauge = "drain_bindings"
-
-	// syslogDrainScheduleSID
-	drainsGauge   = "drains"
-	adaptersGauge = "adpaters"
+	// syslogAgentSID metrics
+	drainsNonAppGauge      = "non_app_drains"
+	drainsBlacklistedGauge = "blacklisted_drains"
+	drainsActiveGauge      = "active_drains"
+	drainsInvlaidGauge     = "invalid_drains"
+	drainsGauge            = "drains"
 
 	// metronSID
 	averageEnvelopGauge = "average_envelope" // bytes/minute

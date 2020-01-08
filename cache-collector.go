@@ -155,7 +155,9 @@ type DopplerMetrics struct {
 
 // SyslogAdapterMetrics syslog adapter metrics
 type SyslogAdapterMetrics struct {
-	System InstanceMetrics
+	System  InstanceMetrics
+	Ingress float64
+	Dropped float64
 }
 
 // SyslogSchedulerMetrics syslog scheduler metrics
@@ -165,10 +167,23 @@ type SyslogSchedulerMetrics struct {
 
 // DrainMetrics Drain metrics
 type DrainMetrics struct {
-	DrainBindings   float64
-	ScheduledDrains float64
-	SinksDropped    float64
+	AgentBindings          float64
+	AgentIngress           float64
+	AgentEgress            float64
+	AgentDropped           float64
+	AgentInvalidDrains     float64
+	AgentActiveDrains      float64
+	AgentNonAppDrains      float64
+	AgentBlacklistedDrains float64
 }
+
+/*
+GAUGE drains:0.000000
+GAUGE non_app_drains:0.000000
+GAUGE blacklisted_drains:0.000000
+GAUGE active_drains:0.000000
+GAUGE invalid_drains:0.000000
+*/
 
 // Metrics root of all computed metrics
 type Metrics struct {
@@ -202,8 +217,10 @@ var (
 	querySumRateJob         string
 	querySumRate            string
 	querySumJob             string
+	querySum                string
 	queryMetricJob          string
 	queryIngressMaxOverTime string
+	queryMin                string
 )
 
 // NewLogCacheClient createa new LCC and returns it
@@ -290,15 +307,18 @@ func (lc *LCC) Collect() error {
 
 	lc.getAvgSystemMetrics(&lc.Metric.TC.System, tcJob)
 	lc.getAvgSystemMetrics(&lc.Metric.Doppler.System, dopplerJob)
-	lc.getAvgSystemMetrics(&lc.Metric.SyslogAdapter.System, syslogAdapterJob)
-	lc.getAvgSystemMetrics(&lc.Metric.SyslogScheduler.System, syslogSchedulerJob)
 
 	lc.Metric.TC.AppStreams = lc.GetSinlgeMetric(appStreamsGauge, trafficControllerSID, tcJob, querySumJob)
 	lc.Metric.TC.SlowConsumers = lc.GetSinlgeMetric(slowConsumerCounter, trafficControllerSID, tcJob, queryAvgRateJob)
 
-	lc.Metric.Drain.DrainBindings = lc.GetSinlgeMetric(drainBindingsGauge, syslogDrainAdapterSID, syslogAdapterJob, querySumJob)
-	lc.Metric.Drain.ScheduledDrains = lc.GetSinlgeMetric(drainsGauge, syslogDrainScheduleSID, syslogSchedulerJob, querySumJob)
-	lc.Metric.Drain.SinksDropped = lc.GetSinlgeMetric(droppedCounter, syslogDrainAdapterSID, syslogAdapterJob, querySumRateJob)
+	lc.Metric.Drain.AgentIngress = lc.GetSinlgeMetric(ingressCounter, syslogAgentSID, "", querySumRate)
+	lc.Metric.Drain.AgentEgress = lc.GetSinlgeMetric(egressCounter, syslogAgentSID, "", querySumRate)
+	lc.Metric.Drain.AgentDropped = lc.GetSinlgeMetric(droppedCounter, syslogAgentSID, "", querySumRate)
+	lc.Metric.Drain.AgentBindings = lc.GetSinlgeMetric(drainsGauge, syslogAgentSID, "", queryMin)
+	lc.Metric.Drain.AgentActiveDrains = lc.GetSinlgeMetric(drainsActiveGauge, syslogAgentSID, "", queryMin)
+	lc.Metric.Drain.AgentInvalidDrains = lc.GetSinlgeMetric(drainsInvlaidGauge, syslogAgentSID, "", queryMin)
+	lc.Metric.Drain.AgentBlacklistedDrains = lc.GetSinlgeMetric(drainsBlacklistedGauge, syslogAgentSID, "", queryMin)
+	lc.Metric.Drain.AgentNonAppDrains = lc.GetSinlgeMetric(drainsNonAppGauge, syslogAgentSID, "", queryMin)
 
 	lc.Metric.Doppler.Ingress = lc.GetSinlgeMetric(ingressCounter, dopplerSID, dopplerJob, querySumRateJob)
 	lc.Metric.Doppler.IngressDropped = lc.GetSinlgeMetric(droppedCounter, dopplerSID, "", queryIngressMaxOverTime)
@@ -326,6 +346,8 @@ func (lc *LCC) updateQeries(offset, duration string) {
 	querySumRateJob = "sum(rate(%s{source_id=\"%s\",job=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
 	querySumRate = "sum(rate(%s{source_id=\"%s\"}[" + lc.Duration + "] offset " + lc.Offset + "))"
 	querySumJob = "sum(%s{source_id=\"%s\",job=\"%s\"} offset " + lc.Offset + ")"
+	querySum = "sum(%s{source_id=\"%s\"} offset " + lc.Offset + ")"
+	queryMin = "min(%s{source_id=\"%s\"} offset " + lc.Offset + ")"
 	queryMetricJob = "%s{source_id=\"%s\",job=\"%s\"}"
 	queryIngressMaxOverTime = "sum(max_over_time(%s{source_id=\"%s\", direction=\"ingress\"}[" + lc.Duration + "])) by (index) > 0"
 }

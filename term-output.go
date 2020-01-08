@@ -16,13 +16,13 @@ Job                    Instance-Counts     CPU-User     CPU-Sys     CPU-Wait    
 ----------------------------------------------------------------------------------------
 Traffic Controller   %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 Doppler              %3d                   %5.2f        %5.2f       %5.2f         %5.2f
-Syslog Aadapter      %3d                   %5.2f        %5.2f       %5.2f         %5.2f
-Syslog Scheduler     %3d                   %5.2f        %5.2f       %5.2f         %5.2f
 
 Drain Information:
-Syslog Adapter drain bindings  : %.0f
-Syslog Scheduler drains        : %.0f
-Doppler Sinks Dropped          : %.0f
+Syslog Agent drain bindings     : %.0f
+Syslog Agent Active Drains      : %.0f
+Syslog Agent Invalid Drains     : %.0f
+Syslog Agent Non-App Drains     : %.0f
+Syslog Agent Blacklisted Drains : %.0f
 
 Doppler Ingress Max Dropped    : %.0f
 Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
@@ -42,20 +42,25 @@ func updateTerm(lcc *LCC) {
 	tm.Clear()
 	tm.MoveCursor(1, 1)
 
-	envStats := "Job\t\t\t\tSubscriptions\tSum-Ingress/s\tDropped/s\tLoss\n"
+	envStats := "Job\t\tSubscriptions\tIngress/s\tEgress/s\tDropped/s\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
-	envStats += fmt.Sprintf("Doppler\t\t\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.Doppler.Subscriptions,
+	envStats += fmt.Sprintf("Doppler\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.Doppler.Subscriptions,
 		lcc.Metric.Doppler.Ingress,
+		lcc.Metric.Doppler.Egress,
 		lcc.Metric.Doppler.Dropped,
 		float64(lcc.Metric.Doppler.Dropped)/float64(lcc.Metric.Doppler.Ingress))
-	envStats += fmt.Sprintf("Metron\t\t\t\t%d\t\t%.0f\t\t%.0f\t\t%.2f\n", 0,
-		lcc.Metric.Metron.Ingress,
+	envStats += fmt.Sprintf("Metron\t\tN/A\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.Metron.Ingress,
+		lcc.Metric.Metron.Egress,
 		lcc.Metric.Metron.Dropped,
 		float64(lcc.Metric.Metron.Dropped)/float64(lcc.Metric.Metron.Ingress))
-	envStats += fmt.Sprintf("Reverse Log Proxy\t\t%d\t\t%.0f\t\t%.0f\t\t%.2f\n", 0,
-		lcc.Metric.RLP.Ingress,
+	envStats += fmt.Sprintf("RLP\t\tN/A\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.RLP.Ingress,
+		lcc.Metric.RLP.Egress,
 		lcc.Metric.RLP.Dropped,
 		float64(lcc.Metric.RLP.Dropped)/float64(lcc.Metric.RLP.Ingress))
+	envStats += fmt.Sprintf("Syslog Agent\tN/A\t\t%.0f\t\t%.0f\t\t%.0f\t\t%.2f\n", lcc.Metric.Drain.AgentIngress,
+		lcc.Metric.Drain.AgentEgress,
+		lcc.Metric.Drain.AgentDropped,
+		float64(lcc.Metric.Drain.AgentDropped)/float64(lcc.Metric.Drain.AgentIngress)) // syslog agent loss rate
 
 	tm.Printf(screenTemplate,
 		time.Now().Format(time.UnixDate),
@@ -71,19 +76,11 @@ func updateTerm(lcc *LCC) {
 		lcc.Metric.Doppler.System.CPUSys,
 		lcc.Metric.Doppler.System.CPUWait,
 		lcc.Metric.Doppler.System.Memory,
-		lcc.Metric.SyslogAdapter.System.Count,
-		lcc.Metric.SyslogAdapter.System.CPUUser,
-		lcc.Metric.SyslogAdapter.System.CPUSys,
-		lcc.Metric.SyslogAdapter.System.CPUWait,
-		lcc.Metric.SyslogAdapter.System.Memory,
-		lcc.Metric.SyslogScheduler.System.Count,
-		lcc.Metric.SyslogScheduler.System.CPUUser,
-		lcc.Metric.SyslogScheduler.System.CPUSys,
-		lcc.Metric.SyslogScheduler.System.CPUWait,
-		lcc.Metric.SyslogScheduler.System.Memory,
-		lcc.Metric.Drain.DrainBindings,
-		lcc.Metric.Drain.ScheduledDrains,
-		lcc.Metric.Drain.SinksDropped,
+		lcc.Metric.Drain.AgentBindings,
+		lcc.Metric.Drain.AgentActiveDrains,
+		lcc.Metric.Drain.AgentInvalidDrains,
+		lcc.Metric.Drain.AgentNonAppDrains,
+		lcc.Metric.Drain.AgentBlacklistedDrains,
 		lcc.Metric.Doppler.IngressDropped,
 		lcc.Metric.Doppler.MessageRateCapacity,
 		envStats,
