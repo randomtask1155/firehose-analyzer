@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	tm "github.com/buger/goterm"
@@ -33,14 +32,27 @@ Doppler Message Rate Capcity   : ` + tm.Color("%.2f", tm.YELLOW) + `
 %s
 `
 
-var progressBar = ""
-
 func updateTerm(lcc *LCC) {
 	lcc.Lock()
 	defer lcc.Unlock()
 
 	tm.Clear()
 	tm.MoveCursor(1, 1)
+
+	// check for errors and populate error string
+	var collectionErrors string
+	if len(lcc.CollectionErrors) > 0 {
+		collectionErrors = "Errors Found during Collection (Max 3 Errors displayed):\n"
+		var maxErrors int
+		if len(lcc.CollectionErrors) > 3 {
+			maxErrors = 3
+		} else {
+			maxErrors = len(lcc.CollectionErrors)
+		}
+		for i := 0; i < maxErrors; i++ {
+			collectionErrors += fmt.Sprintf("%s\n", lcc.CollectionErrors[i].Error())
+		}
+	}
 
 	envStats := "Job\t\tSubscriptions\tIngress/s\tEgress/s\tDropped/s\tLoss\n"
 	envStats += "----------------------------------------------------------------------------------------\n"
@@ -84,7 +96,7 @@ func updateTerm(lcc *LCC) {
 		lcc.Metric.Doppler.IngressDropped,
 		lcc.Metric.Doppler.MessageRateCapacity,
 		envStats,
-		progressBar)
+		collectionErrors)
 	//tm.Printf("%v\n", mc)
 	tm.Flush()
 }
@@ -94,11 +106,4 @@ func loopTerm(lcc *LCC) {
 		time.Sleep(5 * time.Second)
 		updateTerm(lcc)
 	}
-}
-
-// used for replay progress
-func updateProgressBar(percent float64) {
-	length := 80
-	fill := int(float64(length) * percent)
-	progressBar = fmt.Sprintf("|%s%s|%3d%%", strings.Repeat("#", fill), strings.Repeat("-", length-fill), int(percent*100))
 }

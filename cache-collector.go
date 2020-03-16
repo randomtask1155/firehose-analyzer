@@ -201,14 +201,15 @@ type Metrics struct {
 
 // LCC used to manage log cache endoint and credentials
 type LCC struct {
-	accessToken string
-	client      *logcache.Client
-	Metric      Metrics
-	mux         sync.Mutex
-	Start       time.Time
-	Stop        time.Time
-	Offset      string
-	Duration    string
+	accessToken      string
+	client           *logcache.Client
+	Metric           Metrics
+	mux              sync.Mutex
+	Start            time.Time
+	Stop             time.Time
+	Offset           string
+	Duration         string
+	CollectionErrors []error
 }
 
 var (
@@ -225,7 +226,7 @@ var (
 
 // NewLogCacheClient createa new LCC and returns it
 func NewLogCacheClient(address string) (LCC, error) {
-	lc := LCC{Metric: Metrics{}}
+	lc := LCC{Metric: Metrics{}, CollectionErrors: make([]error, 0)}
 	lc.fetchToken()
 	h := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	tc := tokenHTTPClient{HTTPClient(&h), lc.accessToken}
@@ -280,19 +281,16 @@ func (lc *LCC) GetSinlgeMetric(metric, sourceid, job, q string) float64 {
 	defer cancel()
 	var result *logcache_v1.PromQL_InstantQueryResult
 	var err error
+	var qformatted string
 	if job != "" {
-		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid, job))
+		qformatted = fmt.Sprintf(q, metric, sourceid, job)
 	} else {
-		result, err = lc.client.PromQL(ctx, fmt.Sprintf(q, metric, sourceid))
+		qformatted = fmt.Sprintf(q, metric, sourceid)
 	}
+	result, err = lc.client.PromQL(ctx, qformatted)
 
 	if err != nil {
-		if job != "" {
-			logger.Printf(q, metric, sourceid, job)
-		} else {
-			logger.Printf(q, metric, sourceid)
-		}
-		logger.Fatalln(err)
+		lc.CollectionErrors = append(lc.CollectionErrors, fmt.Errorf("%s: %s", qformatted, err))
 	}
 
 	return getSingleSampleResult(result.GetVector().GetSamples())
@@ -356,7 +354,7 @@ func (lc *LCC) updateQeries(offset, duration string) {
 func (lc *LCC) setInstanceCount(system *InstanceMetrics, job string) {
 	result, err := lc.GetResult(cpuUserGauge, boshSystemMetricsSID, job, queryMetricJob)
 	if err != nil {
-		logger.Fatalln(err)
+		lc.CollectionErrors = append(lc.CollectionErrors, err)
 	}
 	sample := result.GetVector().GetSamples()
 	system.Count = int64(len(sample))

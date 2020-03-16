@@ -60,7 +60,7 @@ func (c *BasicPlugin) GetMetadata() plugin.PluginMetadata {
 		Version: plugin.VersionType{
 			Major: 1,
 			Minor: 3,
-			Build: 0,
+			Build: 1,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
@@ -143,6 +143,7 @@ const (
 )
 
 func startAnalyzer() {
+	fmt.Println("Inializing Analyzer...")
 	mc = Metrics{}
 	apiURL, err := cfCLI.ApiEndpoint()
 	if err != nil {
