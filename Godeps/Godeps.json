@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/randomtask1155/firehose-analyzer",
-	"GoVersion": "go1.11",
-	"GodepVersion": "v79",
+	"GoVersion": "go1.13",
+	"GodepVersion": "v80",
 	"Packages": [
 		"."
 	],
